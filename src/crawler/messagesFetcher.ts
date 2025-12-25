@@ -37,7 +37,13 @@ export async function fetchChannelMessages(
   const latest = endDate ? dateToSlackTs(endDate) : undefined;
 
   while (hasMore) {
-    const requestParams: any = {
+    const requestParams: {
+      channel: string;
+      limit: number;
+      cursor?: string;
+      oldest?: string;
+      latest?: string;
+    } = {
       channel: channelId,
       limit: 200,
       cursor: cursor,

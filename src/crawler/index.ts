@@ -7,7 +7,7 @@ import {
   saveMessages,
   saveUsers,
 } from "../db/index.ts";
-import { Group, Mention, SlackMessage, User } from "../utils/types.ts";
+import { Mention, SlackMessage } from "../utils/types.ts";
 import { getAllUserGroups, getUserGroups } from "./userGroups.ts";
 import { fetchChannelMessages } from "./messagesFetcher.ts";
 import { fetchUsers } from "./usersFetcher.ts";
@@ -26,24 +26,54 @@ function parseArgs(): { startDate?: Date; endDate?: Date } {
   }
 
   if (args.length !== 2) {
+    console.error("Error: Invalid number of parameters");
+    console.error("");
     console.error("Usage: deno task crawl [start-date] [end-date]");
-    console.error("Date format: YYYY-MM-DD");
-    console.error("Example: deno task crawl 2025-12-01 2025-12-24");
+    console.error("");
+    console.error("Parameters:");
+    console.error("  start-date    Start date in YYYY-MM-DD format (optional)");
+    console.error("  end-date      End date in YYYY-MM-DD format (optional)");
+    console.error("");
+    console.error("Examples:");
+    console.error("  deno task crawl                    # Crawl all messages");
+    console.error(
+      "  deno task crawl 2025-12-01 2025-12-24  # Crawl date range",
+    );
     Deno.exit(1);
   }
 
   const [startDateStr, endDateStr] = args;
 
+  // Validate date format
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(startDateStr)) {
+    console.error(`Error: Invalid start date format: "${startDateStr}"`);
+    console.error("Expected format: YYYY-MM-DD");
+    Deno.exit(1);
+  }
+
+  if (!dateRegex.test(endDateStr)) {
+    console.error(`Error: Invalid end date format: "${endDateStr}"`);
+    console.error("Expected format: YYYY-MM-DD");
+    Deno.exit(1);
+  }
+
   try {
     const startDate = new Date(startDateStr + "T00:00:00.000Z");
     const endDate = new Date(endDateStr + "T23:59:59.999Z");
 
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      throw new Error("Invalid date format");
+    if (isNaN(startDate.getTime())) {
+      throw new Error(`Invalid start date: "${startDateStr}"`);
+    }
+
+    if (isNaN(endDate.getTime())) {
+      throw new Error(`Invalid end date: "${endDateStr}"`);
     }
 
     if (startDate > endDate) {
-      throw new Error("Start date must be before end date");
+      throw new Error(
+        `Start date (${startDateStr}) must be before or equal to end date (${endDateStr})`,
+      );
     }
 
     console.log(
@@ -52,10 +82,10 @@ function parseArgs(): { startDate?: Date; endDate?: Date } {
     return { startDate, endDate };
   } catch (error) {
     console.error(
-      "Error parsing dates:",
+      "Error:",
       error instanceof Error ? error.message : String(error),
     );
-    console.error("Please use YYYY-MM-DD format");
+    console.error("Please use YYYY-MM-DD format for dates");
     Deno.exit(1);
   }
 }
@@ -91,6 +121,8 @@ async function crawlMentions() {
 
   const client = SlackAPI(token);
 
+  console.log("Progress: Authenticating with Slack API...");
+
   // Get your own User ID
   const authResponse = await client.auth.test();
   if (!authResponse.ok) {
@@ -104,7 +136,7 @@ async function crawlMentions() {
   );
 
   // Get user groups
-  console.log("Fetching user groups...");
+  console.log("Progress: Fetching user groups...");
   const userGroupIds = await getUserGroups(client, myId);
   if (userGroupIds.length > 0) {
     console.log(`Found ${userGroupIds.length} user groups\n`);
@@ -113,11 +145,12 @@ async function crawlMentions() {
   }
 
   // Fetch all user groups for storage
-  console.log("Fetching all user groups for storage...");
+  console.log("Progress: Fetching all user groups for storage...");
   const allGroups = await getAllUserGroups(client);
   console.log(`Found ${allGroups.length} total groups\n`);
 
   // Initialize database
+  console.log("Progress: Initializing database...");
   const db = initDatabase();
 
   try {
@@ -126,7 +159,9 @@ async function crawlMentions() {
     const userIds = new Set<string>();
 
     // Fetch messages from each channel
+    console.log("Progress: Starting message crawling...");
     for (const channelId of channelIds) {
+      console.log(`Progress: Crawling channel ${channelId}...`);
       const { messages, mentions } = await fetchChannelMessages(
         client,
         channelId,
@@ -156,6 +191,7 @@ async function crawlMentions() {
     }
 
     // Fetch user details
+    console.log("Progress: Fetching user details...");
     const users = await fetchUsers(client, userIds);
 
     // Map user names back to messages for convenience (optional, since we have users table)
@@ -165,16 +201,18 @@ async function crawlMentions() {
     }
 
     // Save to database
+    console.log("Progress: Saving data to database...");
     saveMessages(db, allMessages);
     saveUsers(db, users);
     saveGroups(db, allGroups);
     saveMentions(db, allMentions);
 
-    console.log(`\n=== Summary ===`);
+    console.log(`\n=== Crawling Summary ===`);
     console.log(`Total messages saved: ${allMessages.length}`);
     console.log(`Total users saved: ${users.length}`);
     console.log(`Total groups saved: ${allGroups.length}`);
     console.log(`Total mentions saved: ${allMentions.length}`);
+    console.log("Progress: Crawling completed successfully!");
   } catch (error) {
     console.error("An error occurred during crawling:", error);
   } finally {

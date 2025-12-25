@@ -25,6 +25,7 @@
     "deno-slack-api/": "https://deno.land/x/deno_slack_api@2.8.0/",
     "sqlite": "https://deno.land/x/sqlite@v3.9.1/mod.ts",
     "std/dotenv": "https://deno.land/std@0.224.0/dotenv/mod.ts",
+    "std/assert": "https://deno.land/std@0.224.0/assert/mod.ts",
     "@google/generative-ai": "https://esm.sh/@google/generative-ai@0.21.0"
   },
   "fmt": {

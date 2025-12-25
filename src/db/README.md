@@ -5,6 +5,7 @@ This module handles all SQLite database operations for the Slack message enhance
 ## Files
 
 - `index.ts` - Main database functions and schema definitions
+- `messageQueries.ts` - Message retrieval and filtering functions
 - `clear-documents.ts` - CLI script to clear all documents and relations
 
 ## Available Functions
@@ -17,6 +18,13 @@ This module handles all SQLite database operations for the Slack message enhance
 
 - `saveMessages(db, messages)` - Insert/update messages
 - `getMessages(db, limit?)` - Fetch messages with optional limit
+
+### Message Query Operations (messageQueries.ts)
+
+- `validateDateRange(startDate, endDate)` - Validate date range inputs
+- `getMessagesInTimeRange(db, startDate, endDate)` - Get messages within a time range
+- `getMessagesWithUserMention(db, startDate, endDate, userMention)` - Get messages mentioning a specific user
+- `getThreadMessages(db, parentTs)` - Get all thread messages for a parent message
 
 ### User Operations
 

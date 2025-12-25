@@ -1,5 +1,6 @@
 import {
   getDocuments,
+  getGroups,
   getMentions,
   getMessageDocumentRelations,
   getMessages,
@@ -46,6 +47,21 @@ function viewData() {
       );
     } else {
       console.log("No users found.");
+    }
+
+    // View Groups
+    const groups = getGroups(db, limit);
+    console.log(`\n=== Last ${groups.length} groups in database ===\n`);
+    if (groups.length > 0) {
+      console.table(
+        groups.map((g) => ({
+          "Group ID": g.group_id,
+          Name: g.group_name,
+          Handle: g.handle || "-",
+        })),
+      );
+    } else {
+      console.log("No groups found.");
     }
 
     // View Mentions

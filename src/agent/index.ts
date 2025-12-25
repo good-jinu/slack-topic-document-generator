@@ -1,14 +1,97 @@
 import { DB } from "sqlite";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { load } from "std/dotenv";
 import { initDatabase } from "../db/index.ts";
-import { getMessagesInTimeRange } from "./messageRetriever.ts";
 import { messagesToMarkdown } from "./markdownFormatter.ts";
-import { generateDocumentContent, generateTopics } from "./aiGenerator.ts";
+import { getFilteredMessages, MessageFilter } from "./messageRetriever.ts";
+import { AppConfig, loadConfig, validateConfig } from "../config/index.ts";
+import { Logger } from "../utils/logger.ts";
 import {
-  createOrUpdateDocument,
-  findSimilarDocument,
-} from "./documentManager.ts";
+  parseAndValidateDate,
+  validateUserMention,
+} from "../utils/validation.ts";
+import { AIService } from "../services/aiService.ts";
+import { DocumentService } from "../services/documentService.ts";
+
+/**
+ * Interface for command line arguments
+ */
+interface GenerateCommandArgs {
+  startDate: Date;
+  endDate: Date;
+  userMention?: string;
+}
+
+/**
+ * Validates date format and returns Date object
+ */
+export function parseDate(dateStr: string, paramName: string): Date {
+  return parseAndValidateDate(dateStr, paramName);
+}
+
+/**
+ * Parses and validates command line arguments
+ */
+export function parseCommandArgs(args: string[]): GenerateCommandArgs {
+  if (args.length < 2) {
+    throw new Error("Missing required parameters");
+  }
+
+  if (args.length > 3) {
+    throw new Error("Too many parameters provided");
+  }
+
+  const startDate = parseDate(args[0], "start date");
+  const endDate = parseDate(args[1], "end date");
+
+  // Validate date range
+  if (startDate > endDate) {
+    throw new Error(
+      `Start date (${args[0]}) must be before or equal to end date (${
+        args[1]
+      })`,
+    );
+  }
+
+  const userMention = args.length === 3 ? args[2] : undefined;
+
+  // Validate user mention format if provided
+  if (userMention !== undefined) {
+    const validation = validateUserMention(userMention);
+    if (!validation.isValid) {
+      throw new Error(validation.error!);
+    }
+  }
+
+  return {
+    startDate,
+    endDate,
+    userMention: userMention?.trim(),
+  };
+}
+
+/**
+ * Displays usage instructions
+ */
+function showUsage(): void {
+  console.log(
+    "Usage: deno task generate <start-date> <end-date> [user-mention]",
+  );
+  console.log("");
+  console.log("Parameters:");
+  console.log("  start-date    Start date in YYYY-MM-DD format");
+  console.log("  end-date      End date in YYYY-MM-DD format");
+  console.log("  user-mention  Optional. User to filter mentions for");
+  console.log("");
+  console.log("User mention formats:");
+  console.log("  @username     Username with @ prefix");
+  console.log("  username      Username without @ prefix");
+  console.log("  <@U123456>    Slack user ID format");
+  console.log("  U123456       Raw Slack user ID");
+  console.log("");
+  console.log("Examples:");
+  console.log("  deno task generate 2025-12-20 2025-12-24");
+  console.log("  deno task generate 2025-12-20 2025-12-24 @john.doe");
+  console.log("  deno task generate 2025-12-20 2025-12-24 <@U123456789>");
+}
 
 /**
  * Main document generation function
@@ -16,46 +99,67 @@ import {
 export async function generateDocuments(
   startDate: Date,
   endDate: Date,
+  userMention?: string,
   db?: DB,
+  config?: AppConfig,
 ): Promise<void> {
-  // Load environment variables
-  await load();
+  // Load configuration
+  const appConfig = config || await loadConfig();
+  validateConfig(appConfig);
 
-  const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
-  if (!apiKey) {
-    throw new Error("GOOGLE_AI_API_KEY environment variable is required");
-  }
+  // Configure logging
+  Logger.configure(appConfig.logging.level, appConfig.logging.enableConsole);
+  Logger.info("Starting document generation process");
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const database = db || initDatabase();
+  // Initialize services
+  const aiService = new AIService(appConfig);
+  const documentService = new DocumentService(appConfig);
+  const database = db || initDatabase(appConfig.database.path);
 
   try {
-    console.log(
-      `Generating documents for messages from ${startDate.toISOString()} to ${endDate.toISOString()}`,
-    );
+    const dateRangeStr = userMention
+      ? `${startDate.toISOString()} to ${endDate.toISOString()} (filtering for user: ${userMention})`
+      : `${startDate.toISOString()} to ${endDate.toISOString()}`;
 
-    // Step 1: Get messages in time range
-    const messages = getMessagesInTimeRange(database, startDate, endDate);
-    console.log(
-      `Found ${messages.length} messages in the specified time range`,
-    );
+    Logger.info(`Generating documents for messages from ${dateRangeStr}`);
+
+    // Step 1: Get messages in time range with optional user mention filtering
+    const filter: MessageFilter = {
+      startDate,
+      endDate,
+      userMention,
+      includeThreads: true,
+    };
+
+    Logger.info("Retrieving messages from database");
+    const messages = getFilteredMessages(database, filter);
+
+    const filterDescription = userMention
+      ? `messages mentioning "${userMention}" in the specified time range`
+      : `messages in the specified time range`;
+
+    Logger.info(`Found ${messages.length} ${filterDescription}`);
 
     if (messages.length === 0) {
-      console.log("No messages found in the specified time range");
+      const noResultsMessage = userMention
+        ? `No messages found mentioning "${userMention}" in the specified time range`
+        : "No messages found in the specified time range";
+      Logger.warn(noResultsMessage);
       return;
     }
 
     // Step 2: Convert messages to markdown
+    Logger.info("Converting messages to markdown format");
     const messagesMarkdown = messagesToMarkdown(messages, database);
 
     // Step 3: Generate topics using AI
-    console.log("Analyzing messages to identify topics...");
-    const topicsResult = await generateTopics(messagesMarkdown, genAI);
-    console.log(`Identified ${topicsResult.topics.length} topics`);
+    Logger.info("Analyzing messages to identify topics using AI");
+    const topicsResult = await aiService.generateTopics(messagesMarkdown);
+    Logger.info(`Identified ${topicsResult.topics.length} topics`);
 
     // Step 4: Generate documents for each topic
     for (const topic of topicsResult.topics) {
-      console.log(`Processing topic: ${topic.title}`);
+      Logger.info(`Processing topic: ${topic.title}`);
 
       // Get related messages
       const relatedMessages = messages.filter((msg) =>
@@ -63,52 +167,62 @@ export async function generateDocuments(
       );
 
       if (relatedMessages.length === 0) {
-        console.log(`No related messages found for topic: ${topic.title}`);
+        Logger.warn(`No related messages found for topic: ${topic.title}`);
         continue;
       }
 
       // Check for similar existing document
-      const existingDoc = await findSimilarDocument(
+      const existingDoc = await documentService.findSimilarDocument(
         topic.title,
         database,
       );
       let content: string;
 
       if (existingDoc) {
-        const existingContent = await Deno.readTextFile(
-          `db_docs/${existingDoc.name}`,
+        Logger.info(`Updating existing document: ${existingDoc.name}`);
+        const existingContent = await documentService.readDocument(
+          existingDoc.name,
         );
-        content = await generateDocumentContent(
+        content = await aiService.generateDocumentContent(
           topic,
           relatedMessages,
           database,
-          genAI,
           true,
           existingContent,
         );
       } else {
-        content = await generateDocumentContent(
+        Logger.info(`Creating new document for topic: ${topic.title}`);
+        content = await aiService.generateDocumentContent(
           topic,
           relatedMessages,
           database,
-          genAI,
         );
       }
 
       // Create or update document
-      const result = await createOrUpdateDocument(topic, content, database);
-      console.log(
-        `Document saved: ${result.filename} (ID: ${result.documentId})`,
+      const result = await documentService.createOrUpdateDocument(
+        topic,
+        content,
+        database,
+      );
+      Logger.info(
+        `Document ${
+          result.isUpdate ? "updated" : "created"
+        }: ${result.filename} (ID: ${result.documentId})`,
       );
     }
 
-    console.log("Document generation completed!");
+    Logger.info("Document generation completed successfully!");
   } catch (error) {
-    console.error("Error generating documents:", error);
+    Logger.error(
+      "Error generating documents",
+      error instanceof Error ? error : undefined,
+    );
     throw error;
   } finally {
     if (!db) {
       database.close();
+      Logger.debug("Database connection closed");
     }
   }
 }
@@ -119,28 +233,33 @@ export async function generateDocuments(
 if (import.meta.main) {
   const args = Deno.args;
 
-  if (args.length < 2) {
-    console.log("Usage: deno task generate <start_date> <end_date>");
-    console.log("Date format: YYYY-MM-DD");
-    console.log("Example: deno task generate 2025-12-20 2025-12-24");
-    Deno.exit(1);
-  }
-
-  const startDate = new Date(args[0]);
-  const endDate = new Date(args[1]);
-
-  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-    console.error("Invalid date format. Use YYYY-MM-DD");
-    Deno.exit(1);
-  }
-
-  // Set end date to end of day
-  endDate.setHours(23, 59, 59, 999);
-
   try {
-    await generateDocuments(startDate, endDate);
+    const { startDate, endDate, userMention } = parseCommandArgs(args);
+
+    // Set end date to end of day for inclusive range
+    endDate.setHours(23, 59, 59, 999);
+
+    console.log("Starting document generation...");
+    console.log(`Progress: Initializing system components`);
+
+    await generateDocuments(startDate, endDate, userMention);
+
+    console.log(`Progress: Document generation completed successfully!`);
   } catch (error) {
-    console.error("Failed to generate documents:", error);
+    if (error instanceof Error) {
+      if (
+        error.message === "Missing required parameters" ||
+        error.message === "Too many parameters provided"
+      ) {
+        console.error(`Error: ${error.message}`);
+        console.error("");
+        showUsage();
+      } else {
+        console.error(`Error: ${error.message}`);
+      }
+    } else {
+      console.error("An unexpected error occurred:", error);
+    }
     Deno.exit(1);
   }
 }
