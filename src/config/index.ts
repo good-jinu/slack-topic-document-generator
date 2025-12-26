@@ -15,7 +15,6 @@ export interface AppConfig {
   };
   output: {
     documentsPath: string;
-    format: "markdown" | "html";
   };
   logging: {
     level: "debug" | "info" | "warn" | "error";
@@ -49,8 +48,6 @@ export async function loadConfig(): Promise<AppConfig> {
     },
     output: {
       documentsPath: Deno.env.get("DOCUMENTS_PATH") || "db_docs",
-      format: (Deno.env.get("OUTPUT_FORMAT") as "markdown" | "html") ||
-        "markdown",
     },
     logging: {
       level: (Deno.env.get("LOG_LEVEL") as "debug" | "info" | "warn" | "error") ||

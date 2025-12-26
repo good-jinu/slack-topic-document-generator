@@ -61,12 +61,14 @@ Edit `.env` with your credentials
 Choose one of the supported AI providers:
 
 #### Google AI (Gemini)
+
 1. Visit [Google AI Studio](https://aistudio.google.com/)
 2. Create an API key
 3. Add it to your `.env` file as `AI_API_KEY`
 4. Set `AI_PROVIDER=google` (default)
 
 #### OpenAI
+
 1. Visit [OpenAI Platform](https://platform.openai.com/)
 2. Create an API key
 3. Add it to your `.env` file as `AI_API_KEY`
@@ -74,6 +76,7 @@ Choose one of the supported AI providers:
 5. Optionally set `AI_MODEL=gpt-4` or your preferred model
 
 #### Compatible APIs (Anthropic, etc.)
+
 1. Get your API key from your provider
 2. Add it to your `.env` file as `AI_API_KEY`
 3. Set `AI_PROVIDER=openai` (uses OpenAI-compatible format)
@@ -259,20 +262,19 @@ slack_messages.db     # SQLite database (configurable)
 
 ### Environment Variables
 
-| Variable                  | Description                           | Default                 | Required |
-| ------------------------- | ------------------------------------- | ----------------------- | -------- |
-| `AI_API_KEY`              | AI API key                            | -                       | Yes      |
-| `AI_PROVIDER`             | AI provider (google/openai)           | `google`                | No       |
-| `AI_MODEL`                | AI model to use                       | `gemini-2.5-flash-lite` | No       |
-| `AI_BASE_URL`             | Custom API base URL (for compatible APIs) | -                   | No       |
-| `AI_RATE_LIMIT_DELAY`     | Delay between AI requests (ms)        | `10000`                 | No       |
-| `AI_MAX_RETRIES`          | Max retry attempts for AI calls       | `3`                     | No       |
-| `DATABASE_PATH`           | SQLite database file path             | `slack_messages.db`     | No       |
-| `DATABASE_BACKUP_ENABLED` | Enable automatic backups              | `false`                 | No       |
-| `DOCUMENTS_PATH`          | Output directory for documents        | `db_docs`               | No       |
-| `OUTPUT_FORMAT`           | Document format (markdown/html)       | `markdown`              | No       |
-| `LOG_LEVEL`               | Logging level (debug/info/warn/error) | `info`                  | No       |
-| `LOG_CONSOLE`             | Enable console logging                | `true`                  | No       |
+| Variable                  | Description                               | Default                 | Required |
+| ------------------------- | ----------------------------------------- | ----------------------- | -------- |
+| `AI_API_KEY`              | AI API key                                | -                       | Yes      |
+| `AI_PROVIDER`             | AI provider (google/openai)               | `google`                | No       |
+| `AI_MODEL`                | AI model to use                           | `gemini-2.5-flash-lite` | No       |
+| `AI_BASE_URL`             | Custom API base URL (for compatible APIs) | -                       | No       |
+| `AI_RATE_LIMIT_DELAY`     | Delay between AI requests (ms)            | `10000`                 | No       |
+| `AI_MAX_RETRIES`          | Max retry attempts for AI calls           | `3`                     | No       |
+| `DATABASE_PATH`           | SQLite database file path                 | `slack_messages.db`     | No       |
+| `DATABASE_BACKUP_ENABLED` | Enable automatic backups                  | `false`                 | No       |
+| `DOCUMENTS_PATH`          | Output directory for documents            | `db_docs`               | No       |
+| `LOG_LEVEL`               | Logging level (debug/info/warn/error)     | `info`                  | No       |
+| `LOG_CONSOLE`             | Enable console logging                    | `true`                  | No       |
 
 ### Logging Levels
 

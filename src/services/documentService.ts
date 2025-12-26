@@ -47,7 +47,7 @@ export class DocumentService {
       ) {
         if (
           dirEntry.isFile &&
-          dirEntry.name.endsWith(`.${this.config.output.format}`)
+          dirEntry.name.endsWith(".md")
         ) {
           files.push(dirEntry.name);
         }
@@ -96,8 +96,6 @@ export class DocumentService {
    * Create a safe filename from title
    */
   private createSafeFilename(title: string): string {
-    const extension = this.config.output.format === "markdown" ? "md" : "html";
-
     // First try to create a meaningful filename from the title
     let filename = title
       .trim()
@@ -115,7 +113,7 @@ export class DocumentService {
       filename = `document-${Date.now()}`;
     }
 
-    return `${filename}.${extension}`;
+    return `${filename}.md`;
   }
 
   /**
