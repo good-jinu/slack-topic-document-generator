@@ -1,10 +1,10 @@
 import { DB } from "sqlite";
 import { initDatabase } from "../db/index.ts";
-import { messagesToMarkdown } from "./markdownFormatter.ts";
-import { getFilteredMessages, MessageFilter } from "./messageRetriever.ts";
+import { groupedMessagesToMarkdown } from "./markdownFormatter.ts";
+import { getFilteredMessagesGrouped, MessageFilter } from "./messageRetriever.ts";
 import { AppConfig, loadConfig, validateConfig } from "../config/index.ts";
 import { Logger } from "../utils/logger.ts";
-import { parseAndValidateDate, validateUserMention } from "../utils/validation.ts";
+import * as validation from "../utils/validation.ts";
 import { AIService } from "../services/aiService.ts";
 import { DocumentService } from "../services/documentService.ts";
 
@@ -14,14 +14,14 @@ import { DocumentService } from "../services/documentService.ts";
 interface GenerateCommandArgs {
   startDate: Date;
   endDate: Date;
-  userMentions?: string[];
+  userContainings?: string[];
 }
 
 /**
  * Validates date format and returns Date object
  */
 export function parseDate(dateStr: string, paramName: string): Date {
-  return parseAndValidateDate(dateStr, paramName);
+  return validation.parseAndValidateDate(dateStr, paramName);
 }
 
 /**
@@ -42,16 +42,16 @@ export function parseCommandArgs(args: string[]): GenerateCommandArgs {
     );
   }
 
-  // Parse multiple user mentions (everything after the first two arguments)
-  const userMentions = args.length > 2 ? args.slice(2) : undefined;
+  // Parse multiple user containings (everything after the first two arguments)
+  const userContainings = args.length > 2 ? args.slice(2) : undefined;
 
-  // Validate user mention formats if provided
-  if (userMentions && userMentions.length > 0) {
-    for (const userMention of userMentions) {
-      const validation = validateUserMention(userMention);
-      if (!validation.isValid) {
+  // Validate user containing formats if provided
+  if (userContainings && userContainings.length > 0) {
+    for (const userContaining of userContainings) {
+      const validationResult = validation.validateUserContaining(userContaining);
+      if (!validationResult.isValid) {
         throw new Error(
-          `Invalid user mention "${userMention}": ${validation.error!}`,
+          `Invalid user containing "${userContaining}": ${validationResult.error!}`,
         );
       }
     }
@@ -60,7 +60,7 @@ export function parseCommandArgs(args: string[]): GenerateCommandArgs {
   return {
     startDate,
     endDate,
-    userMentions: userMentions?.map((mention) => mention.trim()),
+    userContainings: userContainings?.map((containing) => containing.trim()),
   };
 }
 
@@ -69,32 +69,29 @@ export function parseCommandArgs(args: string[]): GenerateCommandArgs {
  */
 function showUsage(): void {
   console.log(
-    "Usage: deno task generate <start-date> <end-date> [user-mention1] [user-mention2] ...",
+    "Usage: deno task generate <start-date> <end-date> [user-containing1] [user-containing2] ...",
   );
   console.log("");
   console.log("Parameters:");
   console.log("  start-date       Start date in YYYY-MM-DD format");
   console.log("  end-date         End date in YYYY-MM-DD format");
   console.log(
-    "  user-mention     Optional. Multiple users/groups to filter mentions for",
+    "  user-containing  Optional. Multiple users to filter messages by sender",
   );
   console.log("");
-  console.log("User/Group mention formats:");
+  console.log("User containing formats:");
   console.log("  @username        Username with @ prefix");
   console.log("  username         Username without @ prefix");
-  console.log("  <@U123456>       Slack user ID format");
-  console.log("  U123456          Raw Slack user ID");
-  console.log("  @groupname       Group name with @ prefix");
-  console.log("  groupname        Group name without @ prefix");
+  console.log("  U123456          Slack user ID");
   console.log("");
   console.log("Examples:");
   console.log("  deno task generate 2025-12-20 2025-12-24");
   console.log("  deno task generate 2025-12-20 2025-12-24 @john.doe");
   console.log(
-    "  deno task generate 2025-12-20 2025-12-24 @john.doe @team-leads",
+    "  deno task generate 2025-12-20 2025-12-24 @john.doe @jane.smith",
   );
   console.log(
-    "  deno task generate 2025-12-20 2025-12-24 <@U123456789> developers",
+    "  deno task generate 2025-12-20 2025-12-24 U123456789 john.doe",
   );
 }
 
@@ -104,7 +101,7 @@ function showUsage(): void {
 export async function generateDocuments(
   startDate: Date,
   endDate: Date,
-  userMentions?: string[],
+  userContainings?: string[],
   db?: DB,
   config?: AppConfig,
 ): Promise<void> {
@@ -122,52 +119,61 @@ export async function generateDocuments(
   const database = db || initDatabase(appConfig.database.path);
 
   try {
-    const dateRangeStr = userMentions && userMentions.length > 0
-      ? `${startDate.toISOString()} to ${endDate.toISOString()} (filtering for users/groups: ${userMentions.join(", ")})`
+    const dateRangeStr = userContainings && userContainings.length > 0
+      ? `${startDate.toISOString()} to ${endDate.toISOString()} (filtering for messages from users: ${userContainings.join(", ")})`
       : `${startDate.toISOString()} to ${endDate.toISOString()}`;
 
     Logger.info(`Generating documents for messages from ${dateRangeStr}`);
 
-    // Step 1: Get messages in time range with optional user mention filtering
+    // Step 1: Get messages in time range with optional user containing filtering
     const filter: MessageFilter = {
       startDate,
       endDate,
-      userMentions,
+      userContainings,
       includeThreads: true,
     };
 
     Logger.info("Retrieving messages from database");
-    const messages = getFilteredMessages(database, filter);
+    const groupedMessages = getFilteredMessagesGrouped(database, filter);
 
-    const filterDescription = userMentions && userMentions.length > 0
-      ? `messages mentioning "${userMentions.join(", ")}" in the specified time range`
+    const filterDescription = userContainings && userContainings.length > 0
+      ? `messages from users "${userContainings.join(", ")}" in the specified time range`
       : `messages in the specified time range`;
 
-    Logger.info(`Found ${messages.length} ${filterDescription}`);
+    Logger.info(
+      `Found ${groupedMessages.totalMessageCount} ${filterDescription} (${groupedMessages.threads.length} threads, ${groupedMessages.standaloneMessages.length} standalone messages)`,
+    );
 
-    if (messages.length === 0) {
-      const noResultsMessage = userMentions && userMentions.length > 0
-        ? `No messages found mentioning "${userMentions.join(", ")}" in the specified time range`
+    if (groupedMessages.totalMessageCount === 0) {
+      const noResultsMessage = userContainings && userContainings.length > 0
+        ? `No messages found from users "${userContainings.join(", ")}" in the specified time range`
         : "No messages found in the specified time range";
       Logger.warn(noResultsMessage);
       return;
     }
 
-    // Step 2: Convert messages to markdown
-    Logger.info("Converting messages to markdown format");
-    const messagesMarkdown = messagesToMarkdown(messages, database);
+    // Step 2: Convert grouped messages to markdown with thread structure preserved
+    Logger.info("Converting grouped messages to markdown format");
+    const messagesMarkdown = groupedMessagesToMarkdown(groupedMessages, database);
 
     // Step 3: Generate topics using AI
     Logger.info("Analyzing messages to identify topics using AI");
     const topicsResult = await aiService.generateTopics(messagesMarkdown);
     Logger.info(`Identified ${topicsResult.topics.length} topics`);
 
+    // Helper function to get all messages from grouped structure
+    const getAllMessages = () => [
+      ...groupedMessages.threads.flatMap((thread) => [thread.parentMessage, ...thread.replies]),
+      ...groupedMessages.standaloneMessages,
+    ];
+
     // Step 4: Generate documents for each topic
     for (const topic of topicsResult.topics) {
       Logger.info(`Processing topic: ${topic.title}`);
 
       // Get related messages
-      const relatedMessages = messages.filter((msg) => topic.message_ids.includes(msg.id));
+      const allMessages = getAllMessages();
+      const relatedMessages = allMessages.filter((msg) => topic.message_ids.includes(msg.id));
 
       if (relatedMessages.length === 0) {
         Logger.warn(`No related messages found for topic: ${topic.title}`);
@@ -235,7 +241,7 @@ if (import.meta.main) {
   const args = Deno.args;
 
   try {
-    const { startDate, endDate, userMentions } = parseCommandArgs(args);
+    const { startDate, endDate, userContainings } = parseCommandArgs(args);
 
     // Set end date to end of day for inclusive range
     endDate.setHours(23, 59, 59, 999);
@@ -243,7 +249,7 @@ if (import.meta.main) {
     console.log("Starting document generation...");
     console.log(`Progress: Initializing system components`);
 
-    await generateDocuments(startDate, endDate, userMentions);
+    await generateDocuments(startDate, endDate, userContainings);
 
     console.log(`Progress: Document generation completed successfully!`);
   } catch (error) {

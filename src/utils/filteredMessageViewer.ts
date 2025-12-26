@@ -1,7 +1,7 @@
-import { DB } from "sqlite";
 import { initDatabase } from "../db/index.ts";
-import { getFilteredMessages, MessageFilter } from "../agent/messageRetriever.ts";
-import { AppConfig, loadConfig } from "../config/index.ts";
+import { getFilteredMessages, getFilteredMessagesGrouped, MessageFilter } from "../agent/messageRetriever.ts";
+import { groupedMessagesToMarkdown } from "../agent/markdownFormatter.ts";
+import { loadConfig } from "../config/index.ts";
 import { parseAndValidateDate, validateUserMention } from "./validation.ts";
 
 /**
@@ -12,6 +12,7 @@ interface FilteredMessageArgs {
   endDate: Date;
   userMentions?: string[];
   includeThreads?: boolean;
+  markdownOutput?: boolean;
 }
 
 /**
@@ -35,11 +36,14 @@ function parseCommandArgs(args: string[]): FilteredMessageArgs {
   // Parse optional flags and user mentions
   const userMentions: string[] = [];
   let includeThreads = false;
+  let markdownOutput = false;
 
   for (let i = 2; i < args.length; i++) {
     const arg = args[i];
     if (arg === "--include-threads" || arg === "-t") {
       includeThreads = true;
+    } else if (arg === "--markdown" || arg === "-m") {
+      markdownOutput = true;
     } else {
       // Validate user mention format
       const validation = validateUserMention(arg);
@@ -55,6 +59,7 @@ function parseCommandArgs(args: string[]): FilteredMessageArgs {
     endDate,
     userMentions: userMentions.length > 0 ? userMentions : undefined,
     includeThreads,
+    markdownOutput,
   };
 }
 
@@ -72,6 +77,7 @@ function showUsage(): void {
   console.log("");
   console.log("Options:");
   console.log("  --include-threads, -t    Include thread messages");
+  console.log("  --markdown, -m           Output in markdown format (grouped by threads)");
   console.log("");
   console.log("User/Group mention formats:");
   console.log("  @username        Username with @ prefix");
@@ -86,9 +92,12 @@ function showUsage(): void {
   console.log(
     "  deno task filteredMessage 2025-12-20 2025-12-24 --include-threads",
   );
+  console.log(
+    "  deno task filteredMessage 2025-12-20 2025-12-24 --markdown",
+  );
   console.log("  deno task filteredMessage 2025-12-20 2025-12-24 @john.doe");
   console.log(
-    "  deno task filteredMessage 2025-12-20 2025-12-24 -t @john.doe @team-leads",
+    "  deno task filteredMessage 2025-12-20 2025-12-24 -t -m @john.doe @team-leads",
   );
 }
 
@@ -112,6 +121,7 @@ async function viewFilteredMessages(
   endDate: Date,
   userMentions?: string[],
   includeThreads = false,
+  markdownOutput = false,
 ): Promise<void> {
   // Load configuration
   const config = await loadConfig();
@@ -125,36 +135,52 @@ async function viewFilteredMessages(
       includeThreads,
     };
 
-    console.log("Retrieving filtered messages...");
-    console.log(
-      `Date range: ${startDate.toISOString().split("T")[0]} to ${endDate.toISOString().split("T")[0]}`,
-    );
+    if (!markdownOutput) {
+      console.log("Retrieving filtered messages...");
+      console.log(
+        `Date range: ${startDate.toISOString().split("T")[0]} to ${endDate.toISOString().split("T")[0]}`,
+      );
 
-    if (userMentions && userMentions.length > 0) {
-      console.log(`User mentions: ${userMentions.join(", ")}`);
-    }
+      if (userMentions && userMentions.length > 0) {
+        console.log(`User mentions: ${userMentions.join(", ")}`);
+      }
 
-    if (includeThreads) {
-      console.log("Including thread messages");
-    }
+      if (includeThreads) {
+        console.log("Including thread messages");
+      }
 
-    console.log("---");
-
-    const messages = getFilteredMessages(database, filter);
-
-    if (messages.length === 0) {
-      console.log("No messages found matching the criteria.");
-      return;
-    }
-
-    console.log(`Found ${messages.length} messages:\n`);
-
-    for (const message of messages) {
-      console.log(formatMessage(message));
       console.log("---");
     }
 
-    console.log(`\nTotal: ${messages.length} messages`);
+    if (markdownOutput) {
+      // Use grouped messages for markdown output
+      const groupedMessages = getFilteredMessagesGrouped(database, filter);
+
+      if (groupedMessages.totalMessageCount === 0) {
+        console.log("No messages found matching the criteria.");
+        return;
+      }
+
+      const markdown = groupedMessagesToMarkdown(groupedMessages, database);
+      console.log(markdown);
+    } else {
+      // Use flat messages for console output
+      const messages = getFilteredMessages(database, filter);
+
+      if (messages.length === 0) {
+        console.log("No messages found matching the criteria.");
+        return;
+      }
+
+      console.log(`Found ${messages.length} messages:\n`);
+
+      for (const message of messages) {
+        console.log(formatMessage(message));
+        console.log("---");
+      }
+
+      console.log(`\nTotal: ${messages.length} messages`);
+    }
   } catch (error) {
     console.error("Error retrieving messages:", error);
     throw error;
@@ -170,7 +196,7 @@ if (import.meta.main) {
   const args = Deno.args;
 
   try {
-    const { startDate, endDate, userMentions, includeThreads } = parseCommandArgs(args);
+    const { startDate, endDate, userMentions, includeThreads, markdownOutput } = parseCommandArgs(args);
 
     // Set end date to end of day for inclusive range
     endDate.setHours(23, 59, 59, 999);
@@ -180,6 +206,7 @@ if (import.meta.main) {
       endDate,
       userMentions,
       includeThreads,
+      markdownOutput,
     );
   } catch (error) {
     if (error instanceof Error) {

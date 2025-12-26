@@ -3,6 +3,7 @@ import { DB } from "sqlite";
 import { getMessagesInTimeRange, getMessagesWithUserMention, getThreadMessages, validateDateRange } from "../db/messageQueries.ts";
 import { SlackMessage } from "../utils/types.ts";
 import { initDatabase, saveMentions, saveMessages, saveUsers } from "../db/index.ts";
+import { getFilteredMessagesGrouped, MessageFilter } from "./messageRetriever.ts";
 
 // Property-based testing using built-in randomization
 function generateRandomDate(start: Date, end: Date): Date {
@@ -388,31 +389,30 @@ Deno.test("Property 14: Parameter Validation", async () => {
       );
     }
 
-    // Property: Valid parameters with user mention should be accepted
-    const validUserMentions = [
+    // Property: Valid parameters with user containing should be accepted
+    const validUserContainings = [
       "@testuser",
       "testuser",
-      "<@U123456789>",
       "U123456789",
       "user.name",
       "user-name",
       "user_name",
     ];
 
-    const randomMention = validUserMentions[Math.floor(Math.random() * validUserMentions.length)];
-    const validArgsWithMention = [startDate, endDate, randomMention];
+    const randomContaining = validUserContainings[Math.floor(Math.random() * validUserContainings.length)];
+    const validArgsWithContaining = [startDate, endDate, randomContaining];
 
     try {
-      const result = parseCommandArgs(validArgsWithMention);
+      const result = parseCommandArgs(validArgsWithContaining);
       assertEquals(
-        result.userMentions?.[0],
-        randomMention,
-        "User mention should be preserved",
+        result.userContainings?.[0],
+        randomContaining,
+        "User containing should be preserved",
       );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(
-        `Valid args with mention [${validArgsWithMention.join(", ")}] were rejected: ${errorMessage}`,
+        `Valid args with containing [${validArgsWithContaining.join(", ")}] were rejected: ${errorMessage}`,
       );
     }
 
@@ -447,42 +447,42 @@ Deno.test("Property 14: Parameter Validation", async () => {
       );
     }
 
-    // Property: Multiple user mentions should be accepted
+    // Property: Multiple user containings should be accepted
     const multipleUserArgs = [startDate, endDate, "user1", "user2", "user3"];
     let multipleUsersAccepted = false;
     try {
       const result = parseCommandArgs(multipleUserArgs);
       multipleUsersAccepted = true;
       assertEquals(
-        result.userMentions?.length,
+        result.userContainings?.length,
         3,
-        "Should accept multiple user mentions",
+        "Should accept multiple user containings",
       );
     } catch (error) {
-      // Should not throw for multiple valid user mentions
+      // Should not throw for multiple valid user containings
     }
     assertEquals(
       multipleUsersAccepted,
       true,
-      "Multiple user mentions should be accepted",
+      "Multiple user containings should be accepted",
     );
 
-    // Property: Invalid user mention formats should be rejected
-    const invalidMentions = [
+    // Property: Invalid user containing formats should be rejected
+    const invalidContainings = [
       "", // Empty string
       "   ", // Whitespace only
       "@", // Just @ symbol
-      "<@>", // Empty Slack format
+      "<@U123456>", // Slack mention format (not supported for containings)
       "user@domain", // Email-like format
       "user with spaces", // Spaces in username
       "user!@#$%", // Special characters
     ];
 
-    for (const invalidMention of invalidMentions) {
-      const argsWithInvalidMention = [startDate, endDate, invalidMention];
+    for (const invalidContaining of invalidContainings) {
+      const argsWithInvalidContaining = [startDate, endDate, invalidContaining];
       let wasRejected = false;
       try {
-        parseCommandArgs(argsWithInvalidMention);
+        parseCommandArgs(argsWithInvalidContaining);
       } catch (error) {
         wasRejected = true;
         assertEquals(
@@ -494,13 +494,13 @@ Deno.test("Property 14: Parameter Validation", async () => {
         assertEquals(
           errorMessage.includes("Invalid") || errorMessage.includes("empty"),
           true,
-          `Error should indicate invalid mention format for: "${invalidMention}"`,
+          `Error should indicate invalid containing format for: "${invalidContaining}"`,
         );
       }
       assertEquals(
         wasRejected,
         true,
-        `Invalid mention "${invalidMention}" should be rejected`,
+        `Invalid containing "${invalidContaining}" should be rejected`,
       );
     }
 
@@ -533,4 +533,260 @@ Deno.test("Property 14: Parameter Validation", async () => {
       "Start date after end date should be rejected",
     );
   }
+});
+
+// Test for grouped messages functionality
+Deno.test("Grouped Messages: Thread Grouping Accuracy", () => {
+  const db = setupTestDatabase();
+
+  // Create test messages with thread relationships
+  const baseTime = Date.now();
+  const parentTs = baseTime.toString();
+
+  const messages: SlackMessage[] = [
+    // Parent message
+    {
+      channel_id: "C123456",
+      channel_name: "test-channel",
+      user_id: "U1",
+      user_name: "user1",
+      text: "Parent message",
+      ts: parentTs,
+      permalink: `https://test.slack.com/archives/C123456/p${parentTs}`,
+      created_at: new Date(baseTime).toISOString(),
+      mention_type: null,
+    },
+    // Thread replies
+    {
+      channel_id: "C123456",
+      channel_name: "test-channel",
+      user_id: "U2",
+      user_name: "user2",
+      text: "Reply 1",
+      ts: (baseTime + 1000).toString(),
+      thread_id: parentTs,
+      permalink: `https://test.slack.com/archives/C123456/p${baseTime + 1000}`,
+      created_at: new Date(baseTime + 1000).toISOString(),
+      mention_type: null,
+    },
+    {
+      channel_id: "C123456",
+      channel_name: "test-channel",
+      user_id: "U3",
+      user_name: "user3",
+      text: "Reply 2",
+      ts: (baseTime + 2000).toString(),
+      thread_id: parentTs,
+      permalink: `https://test.slack.com/archives/C123456/p${baseTime + 2000}`,
+      created_at: new Date(baseTime + 2000).toISOString(),
+      mention_type: null,
+    },
+    // Standalone message
+    {
+      channel_id: "C123456",
+      channel_name: "test-channel",
+      user_id: "U4",
+      user_name: "user4",
+      text: "Standalone message",
+      ts: (baseTime + 3000).toString(),
+      permalink: `https://test.slack.com/archives/C123456/p${baseTime + 3000}`,
+      created_at: new Date(baseTime + 3000).toISOString(),
+      mention_type: null,
+    },
+  ];
+
+  saveMessages(db, messages);
+
+  const filter: MessageFilter = {
+    startDate: new Date(baseTime - 1000),
+    endDate: new Date(baseTime + 4000),
+    includeThreads: true,
+  };
+
+  const groupedResult = getFilteredMessagesGrouped(db, filter);
+
+  // Verify thread grouping
+  assertEquals(groupedResult.threads.length, 1, "Should have exactly one thread");
+  assertEquals(groupedResult.standaloneMessages.length, 1, "Should have exactly one standalone message");
+  assertEquals(groupedResult.totalMessageCount, 4, "Should have total of 4 messages");
+
+  const thread = groupedResult.threads[0];
+  assertEquals(thread.parentMessage.text, "Parent message", "Parent message should be correctly identified");
+  assertEquals(thread.replies.length, 2, "Thread should have 2 replies");
+  assertEquals(thread.messageCount, 3, "Thread should have total of 3 messages (parent + 2 replies)");
+  assertEquals(thread.threadId, parentTs, "Thread ID should match parent timestamp");
+
+  // Verify replies are in chronological order
+  assertEquals(thread.replies[0].text, "Reply 1", "First reply should be Reply 1");
+  assertEquals(thread.replies[1].text, "Reply 2", "Second reply should be Reply 2");
+
+  // Verify standalone message
+  assertEquals(groupedResult.standaloneMessages[0].text, "Standalone message", "Standalone message should be correctly identified");
+
+  db.close();
+});
+
+// Test for grouped messages with no threads
+Deno.test("Grouped Messages: No Threads Scenario", () => {
+  const db = setupTestDatabase();
+
+  const baseTime = Date.now();
+  const messages: SlackMessage[] = [
+    {
+      channel_id: "C123456",
+      channel_name: "test-channel",
+      user_id: "U1",
+      user_name: "user1",
+      text: "Message 1",
+      ts: baseTime.toString(),
+      permalink: `https://test.slack.com/archives/C123456/p${baseTime}`,
+      created_at: new Date(baseTime).toISOString(),
+      mention_type: null,
+    },
+    {
+      channel_id: "C123456",
+      channel_name: "test-channel",
+      user_id: "U2",
+      user_name: "user2",
+      text: "Message 2",
+      ts: (baseTime + 1000).toString(),
+      permalink: `https://test.slack.com/archives/C123456/p${baseTime + 1000}`,
+      created_at: new Date(baseTime + 1000).toISOString(),
+      mention_type: null,
+    },
+  ];
+
+  saveMessages(db, messages);
+
+  const filter: MessageFilter = {
+    startDate: new Date(baseTime - 1000),
+    endDate: new Date(baseTime + 2000),
+    includeThreads: true,
+  };
+
+  const groupedResult = getFilteredMessagesGrouped(db, filter);
+
+  assertEquals(groupedResult.threads.length, 0, "Should have no threads");
+  assertEquals(groupedResult.standaloneMessages.length, 2, "Should have 2 standalone messages");
+  assertEquals(groupedResult.totalMessageCount, 2, "Should have total of 2 messages");
+
+  db.close();
+});
+
+// Test for grouped messages with orphaned replies
+Deno.test("Grouped Messages: Orphaned Replies Handling", () => {
+  const db = setupTestDatabase();
+
+  const baseTime = Date.now();
+  const messages: SlackMessage[] = [
+    // Reply without parent in the result set
+    {
+      channel_id: "C123456",
+      channel_name: "test-channel",
+      user_id: "U1",
+      user_name: "user1",
+      text: "Orphaned reply",
+      ts: baseTime.toString(),
+      thread_id: "nonexistent_parent",
+      permalink: `https://test.slack.com/archives/C123456/p${baseTime}`,
+      created_at: new Date(baseTime).toISOString(),
+      mention_type: null,
+    },
+  ];
+
+  saveMessages(db, messages);
+
+  const filter: MessageFilter = {
+    startDate: new Date(baseTime - 1000),
+    endDate: new Date(baseTime + 1000),
+    includeThreads: true,
+  };
+
+  const groupedResult = getFilteredMessagesGrouped(db, filter);
+
+  // With the new logic, orphaned replies are grouped into threads with the first reply as pseudo-parent
+  assertEquals(groupedResult.threads.length, 1, "Should create a thread from orphaned reply");
+  assertEquals(groupedResult.standaloneMessages.length, 0, "Should have no standalone messages");
+  assertEquals(groupedResult.totalMessageCount, 1, "Should have total of 1 message");
+
+  // Verify the thread structure
+  const thread = groupedResult.threads[0];
+  assertEquals(thread.messageCount, 1, "Thread should have 1 message");
+  assertEquals(thread.replies.length, 0, "Thread should have no replies (orphaned reply becomes pseudo-parent)");
+  assertEquals(thread.parentMessage.text, "Orphaned reply", "Orphaned reply should become the pseudo-parent");
+  assertEquals(thread.parentMessage.thread_id, undefined, "Pseudo-parent should not have thread_id");
+
+  db.close();
+});
+
+// Test for multiple orphaned replies
+Deno.test("Grouped Messages: Multiple Orphaned Replies", () => {
+  const db = setupTestDatabase();
+
+  const baseTime = Date.now();
+  const messages: SlackMessage[] = [
+    // Multiple replies without parent in the result set
+    {
+      channel_id: "C123456",
+      channel_name: "test-channel",
+      user_id: "U1",
+      user_name: "user1",
+      text: "First orphaned reply",
+      ts: baseTime.toString(),
+      thread_id: "nonexistent_parent",
+      permalink: `https://test.slack.com/archives/C123456/p${baseTime}`,
+      created_at: new Date(baseTime).toISOString(),
+      mention_type: null,
+    },
+    {
+      channel_id: "C123456",
+      channel_name: "test-channel",
+      user_id: "U2",
+      user_name: "user2",
+      text: "Second orphaned reply",
+      ts: (baseTime + 1000).toString(),
+      thread_id: "nonexistent_parent",
+      permalink: `https://test.slack.com/archives/C123456/p${baseTime + 1000}`,
+      created_at: new Date(baseTime + 1000).toISOString(),
+      mention_type: null,
+    },
+    {
+      channel_id: "C123456",
+      channel_name: "test-channel",
+      user_id: "U3",
+      user_name: "user3",
+      text: "Third orphaned reply",
+      ts: (baseTime + 2000).toString(),
+      thread_id: "nonexistent_parent",
+      permalink: `https://test.slack.com/archives/C123456/p${baseTime + 2000}`,
+      created_at: new Date(baseTime + 2000).toISOString(),
+      mention_type: null,
+    },
+  ];
+
+  saveMessages(db, messages);
+
+  const filter: MessageFilter = {
+    startDate: new Date(baseTime - 1000),
+    endDate: new Date(baseTime + 3000),
+    includeThreads: true,
+  };
+
+  const groupedResult = getFilteredMessagesGrouped(db, filter);
+
+  // Should create one thread with first reply as pseudo-parent and others as replies
+  assertEquals(groupedResult.threads.length, 1, "Should create one thread from orphaned replies");
+  assertEquals(groupedResult.standaloneMessages.length, 0, "Should have no standalone messages");
+  assertEquals(groupedResult.totalMessageCount, 3, "Should have total of 3 messages");
+
+  // Verify the thread structure
+  const thread = groupedResult.threads[0];
+  assertEquals(thread.messageCount, 3, "Thread should have 3 messages");
+  assertEquals(thread.replies.length, 2, "Thread should have 2 replies");
+  assertEquals(thread.parentMessage.text, "First orphaned reply", "First orphaned reply should become pseudo-parent");
+  assertEquals(thread.parentMessage.thread_id, undefined, "Pseudo-parent should not have thread_id");
+  assertEquals(thread.replies[0].text, "Second orphaned reply", "Second reply should be in replies");
+  assertEquals(thread.replies[1].text, "Third orphaned reply", "Third reply should be in replies");
+
+  db.close();
 });

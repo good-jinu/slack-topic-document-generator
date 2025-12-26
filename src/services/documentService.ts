@@ -97,11 +97,25 @@ export class DocumentService {
    */
   private createSafeFilename(title: string): string {
     const extension = this.config.output.format === "markdown" ? "md" : "html";
-    return title
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .substring(0, 50) + `.${extension}`;
+
+    // First try to create a meaningful filename from the title
+    let filename = title
+      .trim()
+      // Replace spaces and special characters with hyphens
+      .replace(/[\s\\/:"*?<>|]+/g, "-")
+      // Remove leading/trailing hyphens
+      .replace(/^-+|-+$/g, "")
+      // Limit length
+      .substring(0, 50)
+      // Remove trailing hyphens again after substring
+      .replace(/-+$/, "");
+
+    // If the filename is empty or just hyphens after processing, use a timestamp-based name
+    if (!filename || filename === "" || /^-*$/.test(filename)) {
+      filename = `document-${Date.now()}`;
+    }
+
+    return `${filename}.${extension}`;
   }
 
   /**

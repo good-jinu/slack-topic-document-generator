@@ -54,6 +54,31 @@ export function validateUserMention(mention: string): ValidationResult {
 }
 
 /**
+ * Validate user containing format (for filtering messages by sender)
+ */
+export function validateUserContaining(userContaining: string): ValidationResult {
+  if (!userContaining || userContaining.trim().length === 0) {
+    return { isValid: false, error: "User containing cannot be empty" };
+  }
+
+  const trimmedUserContaining = userContaining.trim();
+
+  // Accept formats: @username, username, U123456
+  // Allow Unicode characters (including Korean, Chinese, etc.), alphanumeric, dots, hyphens, underscores in usernames
+  // \p{L} matches any Unicode letter, \p{N} matches any Unicode number
+  const validUserContainingPattern = /^(@?[\p{L}\p{N}._-]+|U[\w]+)$/u;
+
+  if (!validUserContainingPattern.test(trimmedUserContaining)) {
+    return {
+      isValid: false,
+      error: `Invalid user containing format: "${trimmedUserContaining}". Expected formats: @username, username, or U123456`,
+    };
+  }
+
+  return { isValid: true };
+}
+
+/**
  * Validate date string format (YYYY-MM-DD)
  */
 export function validateDateString(

@@ -10,7 +10,7 @@ function viewData() {
     const limit = 10;
 
     // View Messages
-    const messages = getMessages(db, 50);
+    const messages = getMessages(db, limit);
     console.log(`\n=== Last ${messages.length} messages in database ===\n`);
     if (messages.length > 0) {
       console.table(

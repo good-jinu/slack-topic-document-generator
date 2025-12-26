@@ -7,6 +7,7 @@
  */
 
 import OpenAI from "openai";
+import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import { LLMConfig, LLMProvider } from "./index.ts";
 import { Logger } from "../../utils/logger.ts";
@@ -80,54 +81,25 @@ export class OpenAIProvider implements LLMProvider {
     Logger.debug("Generating structured response with OpenAI-compatible API");
 
     return await withRetry(async () => {
-      // Create a prompt that requests JSON output
-      const structuredPrompt = `${prompt}
-
-Please respond with a valid JSON object that matches the following requirements. Do not include any additional text or formatting - only return the JSON object.`;
-
-      const completion = await this.client.chat.completions.create({
+      const response = await this.client.responses.parse({
         model: this.config.model,
-        messages: [
-          {
-            role: "system",
-            content: "You are a helpful assistant that responds with valid JSON objects only.",
-          },
+        input: [
           {
             role: "user",
-            content: structuredPrompt,
+            content: prompt,
           },
         ],
-        temperature: 0.3, // Lower temperature for more consistent structured output
-        top_p: 1,
-        max_tokens: 16384,
-        stream: false,
+        text: {
+          format: zodTextFormat(schema, "response"),
+        },
       });
 
-      if (!completion.choices?.[0]?.message?.content) {
-        throw new Error("Invalid response from API");
+      if (!response.output_parsed) {
+        throw new Error("Invalid structured response from API");
       }
 
-      const content = completion.choices[0].message.content;
-
-      try {
-        // Try to extract JSON from the response (in case there's extra text)
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        const jsonText = jsonMatch ? jsonMatch[0] : content;
-
-        const parsed = JSON.parse(jsonText);
-        const validated = schema.parse(parsed);
-        Logger.debug(
-          "Successfully generated and validated structured response",
-        );
-        return validated;
-      } catch (error) {
-        Logger.error(
-          "Error parsing or validating AI structured response",
-          error instanceof Error ? error : undefined,
-        );
-        Logger.debug("Raw AI response", { response: content });
-        throw error;
-      }
+      Logger.debug("Successfully generated and validated structured response");
+      return response.output_parsed;
     }, this.retryOptions);
   }
 

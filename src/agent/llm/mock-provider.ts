@@ -45,7 +45,7 @@ export class MockLLMProvider implements LLMProvider {
       topics: [
         {
           title: "Mock Topic",
-          description: "This is a mock topic generated for testing",
+          description: `This is a mock topic generated for testing for ${prompt}`,
           message_ids: [1, 2, 3],
         },
       ],

@@ -91,7 +91,7 @@ export function migrateDatabase(db: DB): void {
         `UPDATE mentions SET mention_type = 'group' WHERE user_id IN (${placeholders})`,
       );
       try {
-        const updateResult = stmt.execute(groupIds);
+        stmt.execute(groupIds);
         console.log(`Updated mention records to group type`);
       } finally {
         stmt.finalize();

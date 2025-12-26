@@ -191,6 +191,65 @@ export function getMessagesWithMultipleUserMentions(
 
   return query;
 }
+
+/**
+ * Get messages sent by specific users within a date range
+ * Supports both user ID format (U123456) and username format (@username or username)
+ */
+export function getMessagesFromUsers(
+  db: DB,
+  startDate: Date,
+  endDate: Date,
+  userContainings: string[],
+): (SlackMessage & { id: number })[] {
+  validateDateRange(startDate, endDate);
+
+  if (userContainings.length === 0) {
+    return getMessagesInTimeRange(db, startDate, endDate);
+  }
+
+  // Build conditions for each user
+  const conditions: string[] = [];
+  const params: (string | null)[] = [
+    startDate.toISOString(),
+    endDate.toISOString(),
+  ];
+
+  for (const userContaining of userContainings) {
+    // Handle different user formats:
+    // 1. User ID format: U123456
+    // 2. Username format: @username or username
+
+    if (userContaining.startsWith("U")) {
+      // Format: U123456 - match by user_id
+      conditions.push(`m.user_id = ?`);
+      params.push(userContaining);
+    } else {
+      // Format: @username or username - match by user_name
+      const cleanUsername = userContaining.startsWith("@") ? userContaining.slice(1) : userContaining;
+      conditions.push(`m.user_name = ?`);
+      params.push(cleanUsername);
+    }
+  }
+
+  const whereCondition = conditions.join(" OR ");
+
+  // Get messages sent by any of the specified users
+  const query = db.queryEntries<SlackMessage & { id: number }>(
+    `
+    SELECT 
+      m.id, m.channel_id, m.channel_name, m.user_id, m.user_name, 
+      m.text, m.ts, m.thread_id, m.permalink, m.created_at, m.mention_type 
+    FROM messages m
+    WHERE m.created_at >= ? AND m.created_at <= ?
+    AND (${whereCondition})
+    ORDER BY m.created_at ASC
+  `,
+    params,
+  );
+
+  return query;
+}
 /**
  * Get all thread messages for a given parent message timestamp
  */

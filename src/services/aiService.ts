@@ -17,7 +17,7 @@ export class AIService {
   }
 
   /**
-   * Generate topics using LLM provider with Zod schema validation
+   * Generate topics using LLM provider with JSON parsing
    */
   async generateTopics(messagesMarkdown: string): Promise<TopicsResult> {
     Logger.info("Starting topic generation with AI");
@@ -32,17 +32,45 @@ For each topic, provide:
 Make sure each topic has at least one message_id associated with it.
 Group related messages under the same topic when they discuss similar subjects.
 
+Return the result as a JSON object with the following structure:
+
+{
+  "topics": [
+    {
+      "title": "API 성능 최적화",
+      "description": "데이터베이스 쿼리 최적화와 캐싱 전략에 대한 논의",
+      "message_ids": [123, 124, 127]
+    },
+    {
+      "title": "새로운 기능 요구사항",
+      "description": "사용자 대시보드 개선과 알림 시스템 추가에 대한 요청",
+      "message_ids": [125, 126, 128]
+    }
+  ]
+}
+
 Messages to analyze:
 ${messagesMarkdown}
+
+Please respond with only the JSON object, no additional text.
 `;
 
     Logger.debug("Sending topic generation request to AI");
-    const result = await this.llmProvider.generateStructuredResponse(
-      prompt,
-      TopicsResultSchema,
-    );
-    Logger.info(`Successfully generated ${result.topics.length} topics`);
-    return result;
+    const content = await this.llmProvider.generateContent(prompt);
+
+    try {
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      const jsonString = jsonMatch ? jsonMatch[0] : content;
+      const parsedResult = JSON.parse(jsonString);
+
+      // Validate the parsed result against the schema
+      const result = TopicsResultSchema.parse(parsedResult);
+      Logger.info(`Successfully generated ${result.topics.length} topics`);
+      return result;
+    } catch (error) {
+      Logger.error("Failed to parse AI response as JSON", { error, content });
+      throw new Error(`Failed to parse AI response: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
   }
 
   /**

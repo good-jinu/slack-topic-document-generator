@@ -299,6 +299,13 @@ export function saveDocument(
 
     return result[0].id;
   } else {
+    // Check if document already exists
+    const existing = getDocumentByName(db, name);
+    if (existing) {
+      console.log(`Document already exists, updating instead: ${name}`);
+      return saveDocument(db, name, true);
+    }
+
     // Insert new document
     const stmt = db.prepareQuery(`
       INSERT INTO documents (name, created_at, updated_at)
@@ -308,6 +315,12 @@ export function saveDocument(
     try {
       stmt.execute([name, now, now]);
       console.log(`Saved document: ${name}`);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
+        console.log(`Document already exists due to race condition, updating instead: ${name}`);
+        return saveDocument(db, name, true);
+      }
+      throw error;
     } finally {
       stmt.finalize();
     }
