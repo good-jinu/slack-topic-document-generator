@@ -52,9 +52,7 @@ async function deploy() {
       if (teamIds.length > 0) {
         // Prefer the default if specified, otherwise take the first one
         const defaultTeam = appsData.default;
-        const targetTeam = (defaultTeam && apps[defaultTeam])
-          ? defaultTeam
-          : teamIds[0];
+        const targetTeam = (defaultTeam && apps[defaultTeam]) ? defaultTeam : teamIds[0];
         appId = apps[targetTeam].app_id;
         console.log(
           `ℹ️ Found App ID ${appId} from .slack/apps.json (Team: ${targetTeam})`,

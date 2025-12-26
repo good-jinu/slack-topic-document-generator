@@ -1,12 +1,4 @@
-import {
-  getDocuments,
-  getGroups,
-  getMentions,
-  getMessageDocumentRelations,
-  getMessages,
-  getUsers,
-  initDatabase,
-} from "../db/index.ts";
+import { getDocuments, getGroups, getMentions, getMessageDocumentRelations, getMessages, getUsers, initDatabase } from "../db/index.ts";
 
 /**
  * Main viewer function

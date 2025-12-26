@@ -1,12 +1,6 @@
 import { SlackAPI } from "deno-slack-api/mod.ts";
 import { load } from "std/dotenv";
-import {
-  initDatabase,
-  saveGroups,
-  saveMentions,
-  saveMessages,
-  saveUsers,
-} from "../db/index.ts";
+import { initDatabase, saveMentions, saveMessages, saveUsers } from "../db/index.ts";
 import { Mention, SlackMessage } from "../utils/types.ts";
 import { getAllUserGroups, getUserGroups } from "./userGroups.ts";
 import { fetchChannelMessages } from "./messagesFetcher.ts";
@@ -194,6 +188,20 @@ async function crawlMentions() {
     console.log("Progress: Fetching user details...");
     const users = await fetchUsers(client, userIds);
 
+    // Convert groups to user format for merged table
+    const groupsAsUsers = allGroups.map((group) => ({
+      user_id: group.group_id,
+      user_name: group.group_name,
+      nickname: group.handle || group.group_name,
+      user_type: "group" as const,
+    }));
+
+    // Combine users and groups
+    const allUsersAndGroups = [
+      ...users.map((user) => ({ ...user, user_type: "user" as const })),
+      ...groupsAsUsers,
+    ];
+
     // Map user names back to messages for convenience (optional, since we have users table)
     const userMap = new Map(users.map((u) => [u.user_id, u.user_name]));
     for (const msg of allMessages) {
@@ -203,8 +211,7 @@ async function crawlMentions() {
     // Save to database
     console.log("Progress: Saving data to database...");
     saveMessages(db, allMessages);
-    saveUsers(db, users);
-    saveGroups(db, allGroups);
+    saveUsers(db, allUsersAndGroups);
     saveMentions(db, allMentions);
 
     console.log(`\n=== Crawling Summary ===`);

@@ -26,9 +26,7 @@ export class Logger {
   }
 
   static error(message: string, error?: Error | LogContext): void {
-    const context = error instanceof Error
-      ? { error: error.message, stack: error.stack }
-      : error;
+    const context = error instanceof Error ? { error: error.message, stack: error.stack } : error;
     Logger.log("error", message, context);
   }
 

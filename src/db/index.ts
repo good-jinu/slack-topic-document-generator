@@ -1,11 +1,15 @@
 import { DB } from "sqlite";
 import { Mention, SlackMessage, User } from "../utils/types.ts";
+import { migrateDatabase } from "./migrate.ts";
 
 /**
  * Initialize SQLite database and create table
  */
 export function initDatabase(dbPath = "slack_messages.db"): DB {
   const db = new DB(dbPath);
+
+  // Run migration first if needed
+  migrateDatabase(db);
 
   db.execute(`
     CREATE TABLE IF NOT EXISTS messages (
@@ -28,15 +32,8 @@ export function initDatabase(dbPath = "slack_messages.db"): DB {
     CREATE TABLE IF NOT EXISTS users (
       user_id TEXT PRIMARY KEY,
       user_name TEXT NOT NULL,
-      nickname TEXT
-    )
-  `);
-
-  db.execute(`
-    CREATE TABLE IF NOT EXISTS groups (
-      group_id TEXT PRIMARY KEY,
-      group_name TEXT NOT NULL,
-      handle TEXT
+      nickname TEXT,
+      user_type TEXT NOT NULL DEFAULT 'user' CHECK (user_type IN ('user', 'group'))
     )
   `);
 
@@ -45,6 +42,7 @@ export function initDatabase(dbPath = "slack_messages.db"): DB {
       channel_id TEXT NOT NULL,
       message_ts TEXT NOT NULL,
       user_id TEXT NOT NULL,
+      mention_type TEXT NOT NULL DEFAULT 'user' CHECK (mention_type IN ('user', 'group')),
       PRIMARY KEY (channel_id, message_ts, user_id)
     )
   `);
@@ -106,42 +104,30 @@ export function saveMessages(db: DB, messages: SlackMessage[]) {
 }
 
 /**
- * Insert groups into SQLite database
- */
-export function saveGroups(
-  db: DB,
-  groups: { group_id: string; group_name: string; handle: string }[],
-) {
-  const stmt = db.prepareQuery(`
-    INSERT OR REPLACE INTO groups (group_id, group_name, handle)
-    VALUES (?, ?, ?)
-  `);
-
-  try {
-    for (const group of groups) {
-      stmt.execute([group.group_id, group.group_name, group.handle]);
-    }
-    console.log(`Saved ${groups.length} groups to database`);
-  } finally {
-    stmt.finalize();
-  }
-}
-
-/**
- * Insert users into SQLite database
+ * Insert users and groups into SQLite database
  */
 export function saveUsers(
   db: DB,
-  users: { user_id: string; user_name: string; nickname: string }[],
+  users: {
+    user_id: string;
+    user_name: string;
+    nickname: string;
+    user_type?: string;
+  }[],
 ) {
   const stmt = db.prepareQuery(`
-    INSERT OR REPLACE INTO users (user_id, user_name, nickname)
-    VALUES (?, ?, ?)
+    INSERT OR REPLACE INTO users (user_id, user_name, nickname, user_type)
+    VALUES (?, ?, ?, ?)
   `);
 
   try {
     for (const user of users) {
-      stmt.execute([user.user_id, user.user_name, user.nickname]);
+      stmt.execute([
+        user.user_id,
+        user.user_name,
+        user.nickname,
+        user.user_type || "user",
+      ]);
     }
     console.log(`Saved ${users.length} users to database`);
   } finally {
@@ -154,16 +140,26 @@ export function saveUsers(
  */
 export function saveMentions(
   db: DB,
-  mentions: { channel_id: string; message_ts: string; user_id: string }[],
+  mentions: {
+    channel_id: string;
+    message_ts: string;
+    user_id: string;
+    mention_type?: string;
+  }[],
 ) {
   const stmt = db.prepareQuery(`
-    INSERT OR REPLACE INTO mentions (channel_id, message_ts, user_id)
-    VALUES (?, ?, ?)
+    INSERT OR REPLACE INTO mentions (channel_id, message_ts, user_id, mention_type)
+    VALUES (?, ?, ?, ?)
   `);
 
   try {
     for (const mention of mentions) {
-      stmt.execute([mention.channel_id, mention.message_ts, mention.user_id]);
+      stmt.execute([
+        mention.channel_id,
+        mention.message_ts,
+        mention.user_id,
+        mention.mention_type || "user",
+      ]);
     }
     console.log(`Saved ${mentions.length} mentions to database`);
   } finally {
@@ -188,7 +184,18 @@ export function getMessages(db: DB, limit?: number): SlackMessage[] {
 }
 
 /**
- * Fetch groups from the database
+ * Fetch users from the database
+ */
+export function getUsers(db: DB, limit?: number): User[] {
+  const limitClause = limit ? `LIMIT ${limit}` : "";
+  const query = db.queryEntries<User>(`
+    SELECT user_id, user_name, nickname FROM users WHERE user_type = 'user' ${limitClause}
+  `);
+  return query;
+}
+
+/**
+ * Fetch groups from the database (now from users table)
  */
 export function getGroups(
   db: DB,
@@ -196,42 +203,36 @@ export function getGroups(
 ): { group_id: string; group_name: string; handle: string }[] {
   const limitClause = limit ? `LIMIT ${limit}` : "";
   const query = db.queryEntries<
-    { group_id: string; group_name: string; handle: string }
+    { user_id: string; user_name: string; nickname: string }
   >(`
-    SELECT group_id, group_name, handle FROM groups ${limitClause}
+    SELECT user_id, user_name, nickname FROM users WHERE user_type = 'group' ${limitClause}
   `);
-  return query;
-}
 
+  // Map to the expected format for backward compatibility
+  return query.map((row) => ({
+    group_id: row.user_id,
+    group_name: row.user_name,
+    handle: row.nickname || "",
+  }));
+}
 /**
  * Get group name for a given group ID.
  * Returns null if the group does not exist.
  */
 export function getGroupName(db: DB, groupId: string): string | null {
   try {
-    const rows = db.queryEntries<{ group_name: string; handle: string }>(
-      `SELECT group_name, handle FROM groups WHERE group_id = ?`,
+    const rows = db.queryEntries<{ user_name: string; nickname: string }>(
+      `SELECT user_name, nickname FROM users WHERE user_id = ? AND user_type = 'group'`,
       [groupId],
     );
     if (rows.length > 0) {
-      const { group_name, handle } = rows[0];
-      return handle && handle.length > 0 ? handle : group_name;
+      const { user_name, nickname } = rows[0];
+      return nickname && nickname.length > 0 ? nickname : user_name;
     }
   } catch {
     // ignore errors
   }
   return null;
-}
-
-/**
- * Fetch users from the database
- */
-export function getUsers(db: DB, limit?: number): User[] {
-  const limitClause = limit ? `LIMIT ${limit}` : "";
-  const query = db.queryEntries<User>(`
-    SELECT user_id, user_name, nickname FROM users ${limitClause}
-  `);
-  return query;
 }
 /**
  * Get display name (nickname or user_name) for a given user ID.
@@ -240,7 +241,7 @@ export function getUsers(db: DB, limit?: number): User[] {
 export function getUserName(db: DB, userId: string): string | null {
   try {
     const rows = db.queryEntries<{ nickname: string; user_name: string }>(
-      `SELECT nickname, user_name FROM users WHERE user_id = ?`,
+      `SELECT nickname, user_name FROM users WHERE user_id = ? AND user_type = 'user'`,
       [userId],
     );
     if (rows.length > 0) {
@@ -256,10 +257,13 @@ export function getUserName(db: DB, userId: string): string | null {
 /**
  * Fetch mentions from the database
  */
-export function getMentions(db: DB, limit?: number): Mention[] {
+export function getMentions(
+  db: DB,
+  limit?: number,
+): (Mention & { mention_type: string })[] {
   const limitClause = limit ? `LIMIT ${limit}` : "";
-  const query = db.queryEntries<Mention>(`
-    SELECT channel_id, message_ts, user_id FROM mentions ${limitClause}
+  const query = db.queryEntries<Mention & { mention_type: string }>(`
+    SELECT channel_id, message_ts, user_id, mention_type FROM mentions ${limitClause}
   `);
   return query;
 }

@@ -16,6 +16,7 @@ export interface User {
   user_id: string;
   user_name: string;
   nickname: string;
+  user_type?: string; // 'user' or 'group'
   [key: string]: unknown;
 }
 
@@ -30,5 +31,6 @@ export interface Mention {
   channel_id: string;
   message_ts: string;
   user_id: string;
+  mention_type?: string; // 'user' or 'group'
   [key: string]: unknown;
 }

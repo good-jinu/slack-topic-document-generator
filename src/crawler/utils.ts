@@ -21,3 +21,12 @@ export function extractMentions(text: string): string[] {
   const matches = text.matchAll(userMentionRegex);
   return Array.from(matches, (match) => match[1]);
 }
+
+/**
+ * Extract group IDs mentioned in text
+ */
+export function extractGroupMentions(text: string): string[] {
+  const groupMentionRegex = /<!subteam\^([A-Z0-9]+)/g;
+  const matches = text.matchAll(groupMentionRegex);
+  return Array.from(matches, (match) => match[1]);
+}

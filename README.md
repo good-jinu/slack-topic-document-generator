@@ -5,7 +5,8 @@ A powerful tool to crawl Slack messages, analyze conversations, and automaticall
 ## Features
 
 - **Slack Message Crawling**: Extract messages from specified Slack channels with date filtering
-- **User Mention Filtering**: Generate documents for specific user mentions
+- **User and Group Mention Filtering**: Generate documents for specific user or group mentions with support for multiple filters
+- **Merged User/Group Management**: Unified handling of users and groups in a single database table
 - **AI-Powered Analysis**: Use Google's Gemini AI to identify topics and generate documentation
 - **Document Management**: Automatically create and update markdown documents from conversation topics
 - **Robust Architecture**: Built with TypeScript, comprehensive error handling, and retry logic
@@ -51,7 +52,7 @@ Edit `.env` with your credentials:
 
 ```env
 # Required
-GOOGLE_AI_API_KEY=your-google-ai-api-key
+AI_API_KEY=your-ai-api-key
 
 # Slack Configuration
 SLACK_CONFIG_TOKEN="xoxp-your-token-here"
@@ -134,7 +135,7 @@ This will:
 #### Generate Documentation
 
 ```bash
-deno task generate <start-date> <end-date> [user-mention]
+deno task generate <start-date> <end-date> [user1] [user2] [group1] ...
 ```
 
 Examples:
@@ -147,20 +148,27 @@ deno task generate 2025-12-20 2025-12-24
 deno task generate 2025-12-20 2025-12-24 @john.doe
 deno task generate 2025-12-20 2025-12-24 <@U123456789>
 
+# Generate docs for multiple users and groups
+deno task generate 2025-12-20 2025-12-24 @john.doe @team-leads developers
+deno task generate 2025-12-20 2025-12-24 U123456 S789012 @support-team
+
 # Generate docs for specific day
 deno task generate 2025-12-20 2025-12-20
 ```
 
-**User mention formats supported:**
+**User/Group mention formats supported:**
 
 - `@username` - Username with @ prefix
 - `username` - Username without @ prefix
 - `<@U123456>` - Slack user ID format
 - `U123456` - Raw Slack user ID
+- `@groupname` - Group name with @ prefix
+- `groupname` - Group name without @ prefix
+- `S123456` - Raw Slack group ID
 
 This will:
 
-- Analyze messages in the date range (optionally filtered by user mentions)
+- Analyze messages in the date range (optionally filtered by user/group mentions)
 - Use AI to identify discussion topics with retry logic
 - Generate or update markdown documents in configured output directory
 - Link documents to original messages in database
@@ -184,6 +192,9 @@ Shows a summary of:
 ```bash
 # Clear all documents and relations
 deno task db:clear-documents
+
+# Migrate existing database to new schema (merges groups into users table)
+deno task db:migrate
 ```
 
 #### Development Commands
@@ -265,7 +276,7 @@ slack_messages.db     # SQLite database (configurable)
 
 | Variable                  | Description                           | Default                 | Required |
 | ------------------------- | ------------------------------------- | ----------------------- | -------- |
-| `GOOGLE_AI_API_KEY`       | Google AI API key                     | -                       | Yes      |
+| `AI_API_KEY`              | AI API key                            | -                       | Yes      |
 | `AI_MODEL`                | AI model to use                       | `gemini-2.5-flash-lite` | No       |
 | `AI_RATE_LIMIT_DELAY`     | Delay between AI requests (ms)        | `10000`                 | No       |
 | `AI_MAX_RETRIES`          | Max retry attempts for AI calls       | `3`                     | No       |
@@ -310,9 +321,9 @@ The project includes:
 
 ### Common Issues
 
-**"GOOGLE_AI_API_KEY environment variable is required"**
+**"AI_API_KEY environment variable is required"**
 
-- Get API key from Google AI Studio
+- Get API key from your AI provider
 - Add to `.env` file
 
 **"Invalid start date format"**

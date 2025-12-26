@@ -2,6 +2,7 @@ import { DB } from "sqlite";
 import { SlackMessage } from "../utils/types.ts";
 import {
   getMessagesInTimeRange,
+  getMessagesWithMultipleUserMentions,
   getMessagesWithUserMention,
   getThreadMessages,
   validateDateRange,
@@ -13,7 +14,7 @@ import {
 export interface MessageFilter {
   startDate: Date;
   endDate: Date;
-  userMention?: string;
+  userMentions?: string[];
   includeThreads?: boolean;
 }
 
@@ -29,12 +30,12 @@ export function getFilteredMessages(
   let messages: (SlackMessage & { id: number })[];
 
   // Get base messages (with or without user mention filtering)
-  if (filter.userMention) {
-    messages = getMessagesWithUserMention(
+  if (filter.userMentions && filter.userMentions.length > 0) {
+    messages = getMessagesWithMultipleUserMentions(
       db,
       filter.startDate,
       filter.endDate,
-      filter.userMention,
+      filter.userMentions,
     );
   } else {
     messages = getMessagesInTimeRange(db, filter.startDate, filter.endDate);
@@ -69,9 +70,7 @@ export function getFilteredMessages(
     }
 
     // Sort by creation date
-    allMessages.sort((a, b) =>
-      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    );
+    allMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
     return allMessages;
   }

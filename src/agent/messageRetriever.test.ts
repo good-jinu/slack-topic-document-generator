@@ -1,18 +1,8 @@
 import { assertEquals, assertThrows } from "std/assert";
 import { DB } from "sqlite";
-import {
-  getMessagesInTimeRange,
-  getMessagesWithUserMention,
-  getThreadMessages,
-  validateDateRange,
-} from "../db/messageQueries.ts";
+import { getMessagesInTimeRange, getMessagesWithUserMention, getThreadMessages, validateDateRange } from "../db/messageQueries.ts";
 import { SlackMessage } from "../utils/types.ts";
-import {
-  initDatabase,
-  saveMentions,
-  saveMessages,
-  saveUsers,
-} from "../db/index.ts";
+import { initDatabase, saveMentions, saveMessages, saveUsers } from "../db/index.ts";
 
 // Property-based testing using built-in randomization
 function generateRandomDate(start: Date, end: Date): Date {
@@ -36,9 +26,7 @@ function generateRandomMessage(
     user_name: "testuser",
     text: `Test message ${id}`,
     ts: ts.getTime().toString(),
-    thread_id: Math.random() > 0.7
-      ? (ts.getTime() - 1000).toString()
-      : undefined,
+    thread_id: Math.random() > 0.7 ? (ts.getTime() - 1000).toString() : undefined,
     permalink: `https://test.slack.com/archives/${channelId}/p${ts.getTime()}`,
     created_at: ts.toISOString(),
     mention_type: Math.random() > 0.8 ? "user" : null,
@@ -153,9 +141,7 @@ Deno.test("Property 3: Thread Relationship Preservation", () => {
     );
 
     // Property: Parent message should be included
-    const hasParent = retrievedThread.some((msg) =>
-      msg.ts === parentTs && !msg.thread_id
-    );
+    const hasParent = retrievedThread.some((msg) => msg.ts === parentTs && !msg.thread_id);
     assertEquals(
       hasParent,
       true,
@@ -282,9 +268,7 @@ Deno.test("Property 13: Date Format Validation", async () => {
     const month = Math.floor(Math.random() * 12) + 1; // 1-12
     const day = Math.floor(Math.random() * 28) + 1; // 1-28 (safe for all months)
 
-    const validDate = `${year}-${month.toString().padStart(2, "0")}-${
-      day.toString().padStart(2, "0")
-    }`;
+    const validDate = `${year}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
 
     // Property: Valid YYYY-MM-DD format should be accepted
     try {
@@ -300,9 +284,7 @@ Deno.test("Property 13: Date Format Validation", async () => {
         `Parsed date ${validDate} should be valid`,
       );
     } catch (error) {
-      const errorMessage = error instanceof Error
-        ? error.message
-        : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(
         `Valid date format ${validDate} was rejected: ${errorMessage}`,
       );
@@ -337,9 +319,7 @@ Deno.test("Property 13: Date Format Validation", async () => {
           true,
           "Should throw an Error object",
         );
-        const errorMessage = error instanceof Error
-          ? error.message
-          : String(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         assertEquals(
           errorMessage.includes("Invalid") || errorMessage.includes("format"),
           true,
@@ -371,12 +351,8 @@ Deno.test("Property 14: Parameter Validation", async () => {
     const day1 = Math.floor(Math.random() * 28) + 1;
     const day2 = Math.floor(Math.random() * 28) + 1;
 
-    let startDate = `${year1}-${month1.toString().padStart(2, "0")}-${
-      day1.toString().padStart(2, "0")
-    }`;
-    let endDate = `${year2}-${month2.toString().padStart(2, "0")}-${
-      day2.toString().padStart(2, "0")
-    }`;
+    let startDate = `${year1}-${month1.toString().padStart(2, "0")}-${day1.toString().padStart(2, "0")}`;
+    let endDate = `${year2}-${month2.toString().padStart(2, "0")}-${day2.toString().padStart(2, "0")}`;
 
     // Ensure start date is before or equal to end date
     const startDateObj = new Date(startDate);
@@ -406,9 +382,7 @@ Deno.test("Property 14: Parameter Validation", async () => {
         "Start date should be <= end date",
       );
     } catch (error) {
-      const errorMessage = error instanceof Error
-        ? error.message
-        : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(
         `Valid args [${validArgs.join(", ")}] were rejected: ${errorMessage}`,
       );
@@ -425,25 +399,20 @@ Deno.test("Property 14: Parameter Validation", async () => {
       "user_name",
     ];
 
-    const randomMention =
-      validUserMentions[Math.floor(Math.random() * validUserMentions.length)];
+    const randomMention = validUserMentions[Math.floor(Math.random() * validUserMentions.length)];
     const validArgsWithMention = [startDate, endDate, randomMention];
 
     try {
       const result = parseCommandArgs(validArgsWithMention);
       assertEquals(
-        result.userMention,
+        result.userMentions?.[0],
         randomMention,
         "User mention should be preserved",
       );
     } catch (error) {
-      const errorMessage = error instanceof Error
-        ? error.message
-        : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(
-        `Valid args with mention [${
-          validArgsWithMention.join(", ")
-        }] were rejected: ${errorMessage}`,
+        `Valid args with mention [${validArgsWithMention.join(", ")}] were rejected: ${errorMessage}`,
       );
     }
 
@@ -464,15 +433,11 @@ Deno.test("Property 14: Parameter Validation", async () => {
           true,
           "Should throw an Error object",
         );
-        const errorMessage = error instanceof Error
-          ? error.message
-          : String(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         assertEquals(
           errorMessage.includes("Missing required parameters"),
           true,
-          `Error should indicate missing parameters for args: [${
-            args.join(", ")
-          }]`,
+          `Error should indicate missing parameters for args: [${args.join(", ")}]`,
         );
       }
       assertEquals(
@@ -482,31 +447,24 @@ Deno.test("Property 14: Parameter Validation", async () => {
       );
     }
 
-    // Property: Too many parameters should be rejected
-    const tooManyArgs = [startDate, endDate, "user1", "extra", "params"];
-    let tooManyRejected = false;
+    // Property: Multiple user mentions should be accepted
+    const multipleUserArgs = [startDate, endDate, "user1", "user2", "user3"];
+    let multipleUsersAccepted = false;
     try {
-      parseCommandArgs(tooManyArgs);
+      const result = parseCommandArgs(multipleUserArgs);
+      multipleUsersAccepted = true;
+      assertEquals(
+        result.userMentions?.length,
+        3,
+        "Should accept multiple user mentions",
+      );
     } catch (error) {
-      tooManyRejected = true;
-      assertEquals(
-        error instanceof Error,
-        true,
-        "Should throw an Error object",
-      );
-      const errorMessage = error instanceof Error
-        ? error.message
-        : String(error);
-      assertEquals(
-        errorMessage.includes("Too many parameters"),
-        true,
-        "Error should indicate too many parameters",
-      );
+      // Should not throw for multiple valid user mentions
     }
     assertEquals(
-      tooManyRejected,
+      multipleUsersAccepted,
       true,
-      "Too many parameters should be rejected",
+      "Multiple user mentions should be accepted",
     );
 
     // Property: Invalid user mention formats should be rejected
@@ -532,9 +490,7 @@ Deno.test("Property 14: Parameter Validation", async () => {
           true,
           "Should throw an Error object",
         );
-        const errorMessage = error instanceof Error
-          ? error.message
-          : String(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         assertEquals(
           errorMessage.includes("Invalid") || errorMessage.includes("empty"),
           true,
@@ -551,9 +507,7 @@ Deno.test("Property 14: Parameter Validation", async () => {
     // Property: Start date after end date should be rejected
     // Generate a case where start > end by adding days to the start date
     const laterYear = year1 + 1;
-    const laterDate = `${laterYear}-${month1.toString().padStart(2, "0")}-${
-      day1.toString().padStart(2, "0")
-    }`;
+    const laterDate = `${laterYear}-${month1.toString().padStart(2, "0")}-${day1.toString().padStart(2, "0")}`;
     const invalidDateOrderArgs = [laterDate, startDate]; // later date as start, earlier as end
 
     let dateOrderRejected = false;
@@ -566,9 +520,7 @@ Deno.test("Property 14: Parameter Validation", async () => {
         true,
         "Should throw an Error object",
       );
-      const errorMessage = error instanceof Error
-        ? error.message
-        : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       assertEquals(
         errorMessage.includes("Start date") && errorMessage.includes("before"),
         true,

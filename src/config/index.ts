@@ -2,10 +2,12 @@ import { load } from "std/dotenv";
 
 export interface AppConfig {
   ai: {
+    provider: string;
     model: string;
     rateLimitDelay: number;
     maxRetries: number;
     apiKey: string;
+    baseURL?: string; // Optional base URL for OpenAI-compatible APIs
   };
   database: {
     path: string;
@@ -27,17 +29,19 @@ export interface AppConfig {
 export async function loadConfig(): Promise<AppConfig> {
   await load();
 
-  const apiKey = Deno.env.get("GOOGLE_AI_API_KEY");
+  const apiKey = Deno.env.get("AI_API_KEY");
   if (!apiKey) {
-    throw new Error("GOOGLE_AI_API_KEY environment variable is required");
+    throw new Error("AI_API_KEY environment variable is required");
   }
 
   return {
     ai: {
+      provider: Deno.env.get("AI_PROVIDER") || "google-genai",
       model: Deno.env.get("AI_MODEL") || "gemini-2.5-flash-lite",
       rateLimitDelay: parseInt(Deno.env.get("AI_RATE_LIMIT_DELAY") || "10000"),
       maxRetries: parseInt(Deno.env.get("AI_MAX_RETRIES") || "3"),
       apiKey,
+      baseURL: Deno.env.get("AI_BASE_URL"), // Optional base URL
     },
     database: {
       path: Deno.env.get("DATABASE_PATH") || "slack_messages.db",
@@ -49,8 +53,7 @@ export async function loadConfig(): Promise<AppConfig> {
         "markdown",
     },
     logging: {
-      level:
-        (Deno.env.get("LOG_LEVEL") as "debug" | "info" | "warn" | "error") ||
+      level: (Deno.env.get("LOG_LEVEL") as "debug" | "info" | "warn" | "error") ||
         "info",
       enableConsole: Deno.env.get("LOG_CONSOLE") !== "false",
     },

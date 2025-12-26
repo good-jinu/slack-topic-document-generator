@@ -2,11 +2,7 @@ import { DB } from "sqlite";
 import { Logger } from "../utils/logger.ts";
 import { AppConfig } from "../config/index.ts";
 import { Topic } from "./aiService.ts";
-import {
-  getDocumentByName,
-  saveDocument,
-  saveMessageDocumentRelations,
-} from "../db/index.ts";
+import { getDocumentByName, saveDocument, saveMessageDocumentRelations } from "../db/index.ts";
 
 export interface DocumentResult {
   documentId: number;
@@ -65,9 +61,7 @@ export class DocumentService {
         const filePath = `${this.config.output.documentsPath}/${file}`;
         const content = await Deno.readTextFile(filePath);
         const lines = content.split("\n");
-        const fileTitle = lines.find((line) =>
-          line.startsWith("# ")
-        )?.replace("# ", "") || "";
+        const fileTitle = lines.find((line) => line.startsWith("# "))?.replace("# ", "") || "";
 
         // Simple similarity check - could be enhanced with more sophisticated matching
         if (
@@ -129,8 +123,7 @@ export class DocumentService {
     if (existingDoc) {
       Logger.info(`Updating existing document: ${existingDoc.name}`);
 
-      const existingPath =
-        `${this.config.output.documentsPath}/${existingDoc.name}`;
+      const existingPath = `${this.config.output.documentsPath}/${existingDoc.name}`;
       await Deno.writeTextFile(existingPath, content);
 
       // Update document timestamp

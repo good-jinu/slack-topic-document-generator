@@ -39,14 +39,14 @@ export function validateUserMention(mention: string): ValidationResult {
   const trimmedMention = mention.trim();
 
   // Accept various formats: @username, username, <@U123456>, U123456
-  // Allow alphanumeric, dots, hyphens, underscores in usernames
-  const validMentionPattern = /^(@?[\w.-]+|<@[UW][\w]+>|[UW][\w]+)$/;
+  // Allow Unicode characters (including Korean, Chinese, etc.), alphanumeric, dots, hyphens, underscores in usernames
+  // \p{L} matches any Unicode letter, \p{N} matches any Unicode number
+  const validMentionPattern = /^(@?[\p{L}\p{N}._-]+|<@[UWS][\w]+>|[UWS][\w]+)$/u;
 
   if (!validMentionPattern.test(trimmedMention)) {
     return {
       isValid: false,
-      error:
-        `Invalid user mention format: "${trimmedMention}". Expected formats: @username, username, <@U123456>, or U123456`,
+      error: `Invalid user mention format: "${trimmedMention}". Expected formats: @username, username, <@U123456>, or U123456`,
     };
   }
 
@@ -65,8 +65,7 @@ export function validateDateString(
   if (!dateRegex.test(dateStr)) {
     return {
       isValid: false,
-      error:
-        `Invalid ${paramName} format: "${dateStr}". Expected format: YYYY-MM-DD`,
+      error: `Invalid ${paramName} format: "${dateStr}". Expected format: YYYY-MM-DD`,
     };
   }
 
@@ -74,8 +73,7 @@ export function validateDateString(
   if (isNaN(date.getTime())) {
     return {
       isValid: false,
-      error:
-        `Invalid ${paramName}: "${dateStr}". Please use a valid date in YYYY-MM-DD format`,
+      error: `Invalid ${paramName}: "${dateStr}". Please use a valid date in YYYY-MM-DD format`,
     };
   }
 

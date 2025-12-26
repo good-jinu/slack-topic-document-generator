@@ -1,9 +1,5 @@
 import { DB } from "sqlite";
-import {
-  getDocumentByName,
-  saveDocument,
-  saveMessageDocumentRelations,
-} from "../db/index.ts";
+import { getDocumentByName, saveDocument, saveMessageDocumentRelations } from "../db/index.ts";
 
 /**
  * Check if a similar document exists
@@ -23,9 +19,7 @@ export async function findSimilarDocument(
     for (const file of files) {
       const content = await Deno.readTextFile(`db_docs/${file}`);
       const lines = content.split("\n");
-      const fileTitle = lines.find((line) =>
-        line.startsWith("# ")
-      )?.replace("# ", "") || "";
+      const fileTitle = lines.find((line) => line.startsWith("# "))?.replace("# ", "") || "";
 
       // Simple similarity check - you might want to use more sophisticated matching
       if (
