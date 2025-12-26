@@ -1,4 +1,4 @@
-# Slack Topic Generator
+# Slack Topic Document Generator
 
 A powerful tool to crawl Slack messages, analyze conversations, and automatically generate documentation using AI. This project helps teams capture knowledge from Slack discussions and transform them into organized, searchable documents.
 
@@ -7,29 +7,17 @@ A powerful tool to crawl Slack messages, analyze conversations, and automaticall
 - **Slack Message Crawling**: Extract messages from specified Slack channels with date filtering
 - **User and Group Mention Filtering**: Generate documents for specific user or group mentions with support for multiple filters
 - **Merged User/Group Management**: Unified handling of users and groups in a single database table
-- **AI-Powered Analysis**: Use Google's Gemini AI to identify topics and generate documentation
+- **AI-Powered Analysis**: Use Google Gemini, OpenAI, or compatible AI providers to identify topics and generate documentation
 - **Document Management**: Automatically create and update markdown documents from conversation topics
 - **Robust Architecture**: Built with TypeScript, comprehensive error handling, and retry logic
 - **Configurable Logging**: Structured logging with multiple levels
 - **Database Storage**: Store messages, users, and relationships in SQLite database with backup support
 
-## Architecture
-
-This project follows a modern, modular architecture with clear separation of concerns:
-
-- **Configuration Layer**: Centralized configuration management
-- **Service Layer**: Business logic and external integrations (AI, Documents, Database)
-- **Utility Layer**: Shared utilities (logging, retry, validation)
-- **Agent Layer**: Core processing logic
-- **Data Layer**: Database operations and queries
-
-For detailed architecture documentation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
 ## Prerequisites
 
-- [Deno](https://deno.land/) runtime installed
+- [mise](https://mise.jdx.dev/) installed (recommended) or [Deno](https://deno.land/) runtime
 - Slack workspace with appropriate permissions
-- Google AI API key for document generation
+- AI API key (Google AI, OpenAI, or compatible API provider)
 
 ## Setup
 
@@ -37,7 +25,13 @@ For detailed architecture documentation, see [docs/ARCHITECTURE.md](docs/ARCHITE
 
 ```bash
 git clone <your-repo-url>
-cd slack-enhance-work
+cd slack-topic-document-generator
+
+# Install runtime using mise (recommended)
+mise install
+
+# Or install Deno directly if you prefer
+# Visit https://deno.land/ for installation instructions
 ```
 
 ### 2. Environment Configuration
@@ -48,34 +42,7 @@ Copy the example environment file and configure your credentials:
 cp .env.example .env
 ```
 
-Edit `.env` with your credentials:
-
-```env
-# Required
-AI_API_KEY=your-ai-api-key
-
-# Slack Configuration
-SLACK_CONFIG_TOKEN="xoxp-your-token-here"
-SLACK_USER_TOKEN=xoxp-your-token-here
-SLACK_CHANNELS=C1234567890,C0987654321,C1111111111
-
-# Optional - AI Configuration
-AI_MODEL=gemini-2.5-flash-lite
-AI_RATE_LIMIT_DELAY=10000
-AI_MAX_RETRIES=3
-
-# Optional - Database Configuration
-DATABASE_PATH=slack_messages.db
-DATABASE_BACKUP_ENABLED=false
-
-# Optional - Output Configuration
-DOCUMENTS_PATH=db_docs
-OUTPUT_FORMAT=markdown
-
-# Optional - Logging Configuration
-LOG_LEVEL=info
-LOG_CONSOLE=true
-```
+Edit `.env` with your credentials
 
 ### 3. Get Slack Token
 
@@ -89,11 +56,29 @@ LOG_CONSOLE=true
    - `usergroups:read`
 5. Install app to workspace and copy the "User OAuth Token"
 
-### 4. Get Google AI API Key
+### 4. Get AI API Key
 
+Choose one of the supported AI providers:
+
+#### Google AI (Gemini)
 1. Visit [Google AI Studio](https://aistudio.google.com/)
 2. Create an API key
-3. Add it to your `.env` file
+3. Add it to your `.env` file as `AI_API_KEY`
+4. Set `AI_PROVIDER=google` (default)
+
+#### OpenAI
+1. Visit [OpenAI Platform](https://platform.openai.com/)
+2. Create an API key
+3. Add it to your `.env` file as `AI_API_KEY`
+4. Set `AI_PROVIDER=openai`
+5. Optionally set `AI_MODEL=gpt-4` or your preferred model
+
+#### Compatible APIs (Anthropic, etc.)
+1. Get your API key from your provider
+2. Add it to your `.env` file as `AI_API_KEY`
+3. Set `AI_PROVIDER=openai` (uses OpenAI-compatible format)
+4. Set `AI_BASE_URL` to your provider's endpoint
+5. Set `AI_MODEL` to your preferred model
 
 ### 5. Find Channel IDs
 
@@ -277,7 +262,9 @@ slack_messages.db     # SQLite database (configurable)
 | Variable                  | Description                           | Default                 | Required |
 | ------------------------- | ------------------------------------- | ----------------------- | -------- |
 | `AI_API_KEY`              | AI API key                            | -                       | Yes      |
+| `AI_PROVIDER`             | AI provider (google/openai)           | `google`                | No       |
 | `AI_MODEL`                | AI model to use                       | `gemini-2.5-flash-lite` | No       |
+| `AI_BASE_URL`             | Custom API base URL (for compatible APIs) | -                   | No       |
 | `AI_RATE_LIMIT_DELAY`     | Delay between AI requests (ms)        | `10000`                 | No       |
 | `AI_MAX_RETRIES`          | Max retry attempts for AI calls       | `3`                     | No       |
 | `DATABASE_PATH`           | SQLite database file path             | `slack_messages.db`     | No       |
@@ -323,8 +310,9 @@ The project includes:
 
 **"AI_API_KEY environment variable is required"**
 
-- Get API key from your AI provider
+- Get API key from your chosen AI provider (Google AI, OpenAI, etc.)
 - Add to `.env` file
+- Set `AI_PROVIDER` to match your provider
 
 **"Invalid start date format"**
 
@@ -337,7 +325,9 @@ The project includes:
 
 **AI generation failures**
 
-- Check your Google AI API key and quota
+- Check your AI API key and quota for your chosen provider
+- Verify `AI_PROVIDER` setting matches your API key type
+- For custom APIs, ensure `AI_BASE_URL` is correctly set
 - The system will automatically retry failed requests
 - Check logs for detailed error information
 
@@ -365,13 +355,4 @@ deno task crawl  # Re-crawl data
 
 ## License
 
-[Add your license here]
-
-## Support
-
-For issues and questions:
-
-1. Check the troubleshooting section
-2. Review [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for technical details
-3. Check logs with `LOG_LEVEL=debug`
-4. Open an issue in the repository
+[MIT](./LICENSE)
