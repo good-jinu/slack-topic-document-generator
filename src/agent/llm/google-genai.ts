@@ -2,7 +2,7 @@
  * Google Generative AI Provider Implementation
  */
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, ResponseSchema } from "@google/generative-ai";
 import { z } from "zod";
 import { LLMConfig, LLMProvider } from "./index.ts";
 import { Logger } from "../../utils/logger.ts";
@@ -62,7 +62,7 @@ export class GoogleGenAIProvider implements LLMProvider {
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
           responseMimeType: "application/json",
-          responseSchema: z.toJSONSchema(schema) as any,
+          responseSchema: z.toJSONSchema(schema) as ResponseSchema,
         },
       });
 

@@ -458,7 +458,7 @@ Deno.test("Property 14: Parameter Validation", async () => {
         3,
         "Should accept multiple user containings",
       );
-    } catch (error) {
+    } catch (_error) {
       // Should not throw for multiple valid user containings
     }
     assertEquals(

@@ -3,6 +3,7 @@ import { getFilteredMessages, getFilteredMessagesGrouped, MessageFilter } from "
 import { groupedMessagesToMarkdown } from "../agent/markdownFormatter.ts";
 import { loadConfig } from "../config/index.ts";
 import { parseAndValidateDate, validateUserMention } from "./validation.ts";
+import { SlackMessage } from "./types.ts";
 
 /**
  * Interface for command line arguments
@@ -104,7 +105,7 @@ function showUsage(): void {
 /**
  * Formats a message for display
  */
-function formatMessage(message: any): string {
+function formatMessage(message: SlackMessage): string {
   const date = new Date(message.created_at).toLocaleString();
   const user = message.user_name || message.user_id || "Unknown";
   const channel = message.channel_name || message.channel_id || "Unknown";
