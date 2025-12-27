@@ -10,6 +10,7 @@ A powerful tool to crawl Slack messages, analyze conversations, and automaticall
 - **AI-Powered Analysis**: Use Google Gemini, OpenAI, or compatible AI providers to identify topics and generate documentation
 - **Enhanced Topic Management**: Store topics with titles, descriptions, date ranges, and associated documents
 - **Document Management**: Automatically create and update markdown documents from conversation topics
+- **HTTP API Server**: RESTful API server to access documents and data programmatically
 - **Robust Architecture**: Built with TypeScript, comprehensive error handling, and retry logic
 - **Configurable Logging**: Structured logging with multiple levels
 - **Database Storage**: Store messages, users, topics, and relationships in SQLite database with backup support
@@ -94,7 +95,8 @@ In Slack, right-click on a channel → "View channel details" → Copy the Chann
 
 1. **Crawl Messages**: Extract messages from Slack channels
 2. **Generate Documents**: Use AI to analyze and create documentation
-3. **View Results**: Browse stored data and generated documents
+3. **Serve API**: Start HTTP server to access documents via REST API
+4. **View Results**: Browse stored data and generated documents
 
 ### Commands
 
@@ -178,6 +180,51 @@ Shows a summary of:
 - Generated topics and documents
 - Message-topic relationships
 
+#### HTTP API Server
+
+Start the HTTP server to access your documents via REST API:
+
+```bash
+deno task serve
+```
+
+The server will start on `http://localhost:8000` by default and provides the following endpoints:
+
+**API Endpoints:**
+- `GET /api/documents` - List all documents
+- `GET /api/documents/:id` - Get specific document with full content
+- `GET /api/documents/:id/messages` - Get messages related to a document
+- `GET /api/documents/search?q=query` - Search documents by title or description
+- `GET /health` - Health check endpoint
+
+**Examples:**
+```bash
+# Get all documents
+curl http://localhost:8000/api/documents
+
+# Get specific document
+curl http://localhost:8000/api/documents/1
+
+# Search documents
+curl "http://localhost:8000/api/documents/search?q=migration"
+
+# Health check
+curl http://localhost:8000/health
+```
+
+**Test the API:**
+```bash
+# Run unit tests for the server
+deno test src/server/
+
+# Or run all tests including server tests
+deno test
+```
+
+**Environment Variables for Server:**
+- `PORT` - Server port (default: 8000)
+- `HOST` - Server hostname (default: localhost)
+
 #### Database Management
 
 ```bash
@@ -222,6 +269,21 @@ deno task dev:crawl-and-generate
 
 Runs crawling followed by document generation.
 
+#### API Development Workflow
+
+```bash
+# Start the server in one terminal
+deno task serve
+
+# In another terminal, test the endpoints
+deno task serve:test
+
+# Or manually test specific endpoints
+curl http://localhost:8000/api/documents
+curl http://localhost:8000/api/documents/1
+curl "http://localhost:8000/api/documents/search?q=your-search-term"
+```
+
 ## Configuration
 
 ### Environment Variables
@@ -239,6 +301,8 @@ Runs crawling followed by document generation.
 | `DOCUMENTS_PATH`          | Output directory for documents            | `db_docs`               | No       |
 | `LOG_LEVEL`               | Logging level (debug/info/warn/error)     | `info`                  | No       |
 | `LOG_CONSOLE`             | Enable console logging                    | `true`                  | No       |
+| `PORT`                    | HTTP server port                          | `8000`                  | No       |
+| `HOST`                    | HTTP server hostname                      | `localhost`             | No       |
 
 ### Logging Levels
 

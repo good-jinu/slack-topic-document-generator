@@ -1,8 +1,8 @@
 import { DB } from "sqlite";
 import { Logger } from "../utils/logger.ts";
 import { AppConfig } from "../config/index.ts";
-import { Topic } from "./aiService.ts";
-import { getTopicByFileName, saveMessageTopicRelations, saveTopic } from "../db/index.ts";
+import { Topic } from "../agent/schemas.ts";
+import { getTopicById, saveMessageTopicRelations, saveTopic } from "../db/index.ts";
 
 export interface DocumentResult {
   topicId: number;
@@ -32,62 +32,21 @@ export class DocumentService {
   }
 
   /**
-   * Check if a similar document exists
+   * Get existing document info from database using topic ID
    */
-  async findSimilarDocument(
-    title: string,
+  private getExistingDocument(
+    topicId: number,
     db: DB,
-  ): Promise<{ id: number; name: string } | null> {
+  ): { id: number; filename: string } | null {
     try {
-      await this.ensureDocumentsDirectory();
-
-      const files: string[] = [];
-      for await (
-        const dirEntry of Deno.readDir(this.config.output.documentsPath)
-      ) {
-        if (
-          dirEntry.isFile &&
-          dirEntry.name.endsWith(".md")
-        ) {
-          files.push(dirEntry.name);
-        }
+      // Get topic from database using topic ID
+      const topic = getTopicById(db, topicId);
+      if (topic && topic.file_name) {
+        return { id: topic.id, filename: topic.file_name };
       }
-
-      Logger.debug(
-        `Checking ${files.length} existing documents for similarity`,
-      );
-
-      for (const file of files) {
-        const filePath = `${this.config.output.documentsPath}/${file}`;
-        const content = await Deno.readTextFile(filePath);
-        const lines = content.split("\n");
-        const fileTitle = lines.find((line) => line.startsWith("# "))?.replace("# ", "") || "";
-
-        // Simple similarity check - could be enhanced with more sophisticated matching
-        if (
-          fileTitle.toLowerCase().includes(title.toLowerCase()) ||
-          title.toLowerCase().includes(fileTitle.toLowerCase())
-        ) {
-          Logger.debug(`Found similar document: ${file}`, {
-            fileTitle,
-            searchTitle: title,
-          });
-
-          // Get topic from database
-          const topic = getTopicByFileName(db, file);
-          if (topic) {
-            return { id: topic.id, name: file };
-          }
-        }
-      }
-
-      Logger.debug("No similar document found");
       return null;
     } catch (error) {
-      Logger.error(
-        "Error checking for similar documents",
-        error instanceof Error ? error : undefined,
-      );
+      Logger.error("Error getting existing document", error instanceof Error ? error : undefined);
       return null;
     }
   }
@@ -126,64 +85,68 @@ export class DocumentService {
   ): Promise<DocumentResult> {
     await this.ensureDocumentsDirectory();
 
+    // Check if topic already exists in database (has an ID)
+    if (topic.id) {
+      // Topic exists - update existing document
+      const existingDoc = this.getExistingDocument(topic.id, db);
+
+      if (existingDoc && existingDoc.filename) {
+        Logger.info(`Updating existing document: ${existingDoc.filename}`);
+
+        const existingPath = `${this.config.output.documentsPath}/${existingDoc.filename}`;
+        await Deno.writeTextFile(existingPath, content);
+
+        // Update topic with new information
+        const topicId = saveTopic(db, topic.title, topic.description, existingDoc.filename, undefined, undefined, true);
+
+        // Add relations for all message IDs
+        const relations = topic.message_ids.map((id) => ({
+          message_id: id,
+          topic_id: topicId,
+        }));
+        saveMessageTopicRelations(db, relations);
+
+        Logger.info(`Document updated successfully: ${existingDoc.filename}`, {
+          topicId,
+          messageCount: topic.message_ids.length,
+        });
+
+        return {
+          topicId,
+          filename: existingDoc.filename,
+          isUpdate: true,
+        };
+      }
+    }
+
+    // Topic doesn't exist or no existing document - create new document
     const filename = this.createSafeFilename(topic.title);
     const filepath = `${this.config.output.documentsPath}/${filename}`;
 
-    // Check if similar document exists
-    const existingDoc = await this.findSimilarDocument(topic.title, db);
+    Logger.info(`Creating new document: ${filename}`);
 
-    if (existingDoc) {
-      Logger.info(`Updating existing document: ${existingDoc.name}`);
+    await Deno.writeTextFile(filepath, content);
 
-      const existingPath = `${this.config.output.documentsPath}/${existingDoc.name}`;
-      await Deno.writeTextFile(existingPath, content);
+    // Save topic to database
+    const topicId = saveTopic(db, topic.title, topic.description, filename);
 
-      // Update topic with new information
-      const topicId = saveTopic(db, topic.title, topic.description, existingDoc.name, undefined, undefined, true);
+    // Add relations for all message IDs
+    const relations = topic.message_ids.map((id) => ({
+      message_id: id,
+      topic_id: topicId,
+    }));
+    saveMessageTopicRelations(db, relations);
 
-      // Add relations for all message IDs
-      const relations = topic.message_ids.map((id) => ({
-        message_id: id,
-        topic_id: topicId,
-      }));
-      saveMessageTopicRelations(db, relations);
+    Logger.info(`Document created successfully: ${filename}`, {
+      topicId,
+      messageCount: topic.message_ids.length,
+    });
 
-      Logger.info(`Document updated successfully: ${existingDoc.name}`, {
-        topicId,
-        messageCount: topic.message_ids.length,
-      });
-
-      return {
-        topicId,
-        filename: existingDoc.name,
-        isUpdate: true,
-      };
-    } else {
-      Logger.info(`Creating new document: ${filename}`);
-
-      await Deno.writeTextFile(filepath, content);
-
-      // Save topic to database
-      const topicId = saveTopic(db, topic.title, topic.description, filename);
-
-      // Add relations for all message IDs
-      const relations = topic.message_ids.map((id) => ({
-        message_id: id,
-        topic_id: topicId,
-      }));
-      saveMessageTopicRelations(db, relations);
-
-      Logger.info(`Document created successfully: ${filename}`, {
-        topicId,
-        messageCount: topic.message_ids.length,
-      });
-
-      return {
-        topicId,
-        filename,
-        isUpdate: false,
-      };
-    }
+    return {
+      topicId,
+      filename,
+      isUpdate: false,
+    };
   }
 
   /**

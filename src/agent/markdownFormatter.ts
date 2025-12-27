@@ -39,9 +39,6 @@ export function groupedMessagesToMarkdown(
 ): string {
   let markdown = "# Slack Messages (Grouped by Threads)\n\n";
 
-  markdown += `**Summary:** ${groupedMessages.totalMessageCount} total messages `;
-  markdown += `(${groupedMessages.threads.length} threads, ${groupedMessages.standaloneMessages.length} standalone messages)\n\n`;
-
   // Process threads first
   if (groupedMessages.threads.length > 0) {
     markdown += "## Conversation Threads\n\n";

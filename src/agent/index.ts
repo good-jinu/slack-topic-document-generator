@@ -1,5 +1,5 @@
 import { DB } from "sqlite";
-import { initDatabase } from "../db/index.ts";
+import { getTopicById, initDatabase } from "../db/index.ts";
 import { groupedMessagesToMarkdown } from "./markdownFormatter.ts";
 import { getFilteredMessagesGrouped, MessageFilter } from "./messageRetriever.ts";
 import { AppConfig, loadConfig, validateConfig } from "../config/index.ts";
@@ -158,7 +158,7 @@ export async function generateDocuments(
 
     // Step 3: Generate topics using AI
     Logger.info("Analyzing messages to identify topics using AI");
-    const topicsResult = await aiService.generateTopics(messagesMarkdown);
+    const topicsResult = await aiService.generateTopics(messagesMarkdown, database);
     Logger.info(`Identified ${topicsResult.topics.length} topics`);
 
     // Helper function to get all messages from grouped structure
@@ -180,33 +180,37 @@ export async function generateDocuments(
         continue;
       }
 
-      // Check for similar existing document
-      const existingDoc = await documentService.findSimilarDocument(
-        topic.title,
-        database,
-      );
-      let content: string;
+      let isUpdate = false;
+      let existingContent = "";
 
-      if (existingDoc) {
-        Logger.info(`Updating existing document: ${existingDoc.name}`);
-        const existingContent = await documentService.readDocument(
-          existingDoc.name,
-        );
-        content = await aiService.generateDocumentContent(
-          topic,
-          relatedMessages,
-          database,
-          true,
-          existingContent,
-        );
+      // Check if topic has an existing ID (matched with existing topic)
+      if (topic.id) {
+        Logger.info(`Updating existing topic with ID ${topic.id}: ${topic.title}`);
+        isUpdate = true;
+
+        // Get existing document content for this topic
+        const existingTopic = getTopicById(database, topic.id);
+        if (existingTopic && existingTopic.file_name) {
+          try {
+            existingContent = await documentService.readDocument(existingTopic.file_name);
+          } catch (error) {
+            Logger.warn(`Could not read existing document for topic ${topic.id}, creating new content`);
+            Logger.debug("Error details", { error: error instanceof Error ? error.message : String(error) });
+            isUpdate = false;
+          }
+        }
       } else {
         Logger.info(`Creating new document for topic: ${topic.title}`);
-        content = await aiService.generateDocumentContent(
-          topic,
-          relatedMessages,
-          database,
-        );
       }
+
+      // Generate document content
+      const content = await aiService.generateDocumentContent(
+        topic,
+        relatedMessages,
+        database,
+        isUpdate,
+        existingContent,
+      );
 
       // Create or update document
       const result = await documentService.createOrUpdateDocument(

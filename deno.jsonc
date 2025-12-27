@@ -9,6 +9,7 @@
     "filteredMessage:help": "echo 'Usage: deno task filteredMessage <start-date> <end-date> [options] [user-mentions...]' && echo 'Date format: YYYY-MM-DD' && echo 'Options: --include-threads (-t), --markdown (-m)' && echo 'Users/Groups: @username, username, <@U123456>, U123456, groupname' && echo 'Example: deno task filteredMessage 2025-12-01 2025-12-24 -t -m @john.doe'",
     "view": "deno run --allow-all src/utils/viewer.ts",
     "deploy": "deno run --env-file --allow-all src/deploy.ts",
+    "serve": "deno run --allow-net --allow-read src/server/serve.ts",
 
     // Database management tasks
     "db:clear-topics": "deno run --allow-read --allow-write src/db/clear-topics.ts",

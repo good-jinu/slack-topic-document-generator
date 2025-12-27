@@ -5,6 +5,14 @@ import { Logger } from "../utils/logger.ts";
 import { AppConfig } from "../config/index.ts";
 import { createLLMProvider, LLMProvider } from "../agent/llm/index.ts";
 import { Topic, TopicsResult, TopicsResultSchema } from "../agent/schemas.ts";
+import { getTopics } from "../db/index.ts";
+import {
+  createNewDocumentPrompt,
+  createTopicAnalysisPrompt,
+  createTopicFormattingAndMatchingPrompt,
+  createUpdateDocumentPrompt,
+  formatMessagesForDocument,
+} from "../agent/prompts/index.ts";
 
 // Export types from schemas
 export type { Topic, TopicsResult } from "../agent/schemas.ts";
@@ -17,46 +25,34 @@ export class AIService {
   }
 
   /**
-   * Generate topics using LLM provider with JSON parsing
+   * Generate topics using LLM provider with two-step approach
    */
-  async generateTopics(messagesMarkdown: string): Promise<TopicsResult> {
-    Logger.info("Starting topic generation with AI");
+  async generateTopics(messagesMarkdown: string, db: DB): Promise<TopicsResult> {
+    Logger.info("Starting topic generation with AI (two-step approach)");
 
-    const prompt = `
-Analyze the following Slack messages and identify distinct topics that were discussed. 
-For each topic, provide:
-1. A clear, concise title
-2. A brief description of what was discussed
-3. The message IDs that relate to this topic (extract from "Message ID: X" lines)
+    // Step 1: Think about how to distinguish topics
+    const thinkingPrompt = createTopicAnalysisPrompt(messagesMarkdown);
 
-Make sure each topic has at least one message_id associated with it.
-Group related messages under the same topic when they discuss similar subjects.
+    Logger.debug("Step 1: Sending thinking request to AI");
+    const thinkingContent = await this.llmProvider.generateContent(thinkingPrompt);
+    Logger.debug("Step 1: Received AI thinking response");
 
-Return the result as a JSON object with the following structure:
+    // Get existing topics from database for step 2
+    const existingTopics = getTopics(db);
+    const existingTopicsText = existingTopics.map((topic) =>
+      `ID: ${topic.id}, Title: "${topic.title}", Description: "${topic.description || "No description"}"`
+    ).join("\n");
 
-{
-  "topics": [
-    {
-      "title": "API 성능 최적화",
-      "description": "데이터베이스 쿼리 최적화와 캐싱 전략에 대한 논의",
-      "message_ids": [123, 124, 127]
-    },
-    {
-      "title": "새로운 기능 요구사항",
-      "description": "사용자 대시보드 개선과 알림 시스템 추가에 대한 요청",
-      "message_ids": [125, 126, 128]
-    }
-  ]
-}
+    // Step 2: Format the analysis into JSON and check for similar existing topics
+    const formatAndMatchPrompt = createTopicFormattingAndMatchingPrompt(
+      thinkingContent,
+      messagesMarkdown,
+      existingTopicsText,
+    );
 
-Messages to analyze:
-${messagesMarkdown}
-
-Please respond with only the JSON object, no additional text.
-`;
-
-    Logger.debug("Sending topic generation request to AI");
-    const content = await this.llmProvider.generateContent(prompt);
+    Logger.debug("Step 2: Sending formatting and matching request to AI");
+    const content = await this.llmProvider.generateContent(formatAndMatchPrompt);
+    Logger.debug("Step 2: Received AI formatting and matching response");
 
     try {
       const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -65,7 +61,7 @@ Please respond with only the JSON object, no additional text.
 
       // Validate the parsed result against the schema
       const result = TopicsResultSchema.parse(parsedResult);
-      Logger.info(`Successfully generated ${result.topics.length} topics`);
+      Logger.info(`Successfully generated ${result.topics.length} topics using two-step approach`);
       return result;
     } catch (error) {
       Logger.error("Failed to parse AI response as JSON", { error, content });
@@ -88,46 +84,12 @@ Please respond with only the JSON object, no additional text.
       isUpdate,
     });
 
-    const messagesText = relatedMessages.map((msg) => {
-      const parsedText = parseMessage(msg.text, db);
-      const date = new Date(msg.created_at).toLocaleString();
-      return `[${date}] ${msg.user_name} in ${msg.channel_name}: ${parsedText}`;
-    }).join("\n");
+    const messagesText = formatMessagesForDocument(
+      relatedMessages,
+      (text: string) => parseMessage(text, db),
+    );
 
-    const prompt = isUpdate
-      ? `
-Update the following document with new information from recent Slack messages.
-Add the new context while maintaining the existing structure and avoiding duplication.
-
-Existing document:
-${existingContent}
-
-New messages to incorporate:
-${messagesText}
-
-Topic: ${topic.title}
-Description: ${topic.description}
-
-Please update the document to include the new information while maintaining a coherent structure.
-`
-      : `
-Create a comprehensive document based on the following Slack messages discussion.
-
-Topic: ${topic.title}
-Description: ${topic.description}
-
-Related messages:
-${messagesText}
-
-Please create a well-structured markdown document that:
-1. Summarizes the key points discussed
-2. Organizes information logically
-3. Includes relevant details and decisions made
-4. Uses proper markdown formatting
-5. Starts with a clear title using # ${topic.title}
-
-Make it professional and easy to understand for someone who wasn't part of the original conversation.
-`;
+    const prompt = isUpdate ? createUpdateDocumentPrompt(topic, messagesText, existingContent) : createNewDocumentPrompt(topic, messagesText);
 
     Logger.debug("Sending document generation request to AI");
     const content = await this.llmProvider.generateContent(prompt);

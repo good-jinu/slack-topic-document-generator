@@ -15,6 +15,9 @@ export const TopicSchema = z.object({
   message_ids: z.array(z.number()).describe(
     "Array of message IDs that relate to this topic",
   ),
+  id: z.number().optional().describe(
+    "Database ID of existing topic if this topic matches an existing one",
+  ),
 });
 
 /**
