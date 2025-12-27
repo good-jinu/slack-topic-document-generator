@@ -1,5 +1,5 @@
 {
-  "name": "@monorepo/db",
+  "name": "@topicgen/db",
   "version": "0.0.0",
   "exports": {
     "./index.ts": "./index.ts",

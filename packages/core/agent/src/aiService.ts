@@ -1,21 +1,21 @@
 import { DB } from "sqlite";
-import { SlackMessage } from "@monorepo/core/utils/types.ts";
-import { parseMessage } from "@monorepo/core/agent/messageParser.ts";
-import { Logger } from "@monorepo/core/utils/logger.ts";
-import { AppConfig } from "@monorepo/core/config/index.ts";
-import { createLLMProvider, LLMProvider } from "@monorepo/core/agent/llm/index.ts";
-import { Topic, TopicsResult, TopicsResultSchema } from "@monorepo/core/agent/schemas.ts";
-import { getTopics } from "@monorepo/db/index.ts";
+import { SlackMessage } from "@topicgen/core/utils/types.ts";
+import { parseMessage } from "@topicgen/core/agent/messageParser.ts";
+import { Logger } from "@topicgen/core/utils/logger.ts";
+import { AppConfig } from "@topicgen/core/config/index.ts";
+import { createLLMProvider, LLMProvider } from "@topicgen/core/agent/llm/index.ts";
+import { Topic, TopicsResult, TopicsResultSchema } from "@topicgen/core/agent/schemas.ts";
+import { getTopics } from "@topicgen/db/index.ts";
 import {
   createNewDocumentPrompt,
   createTopicAnalysisPrompt,
   createTopicFormattingAndMatchingPrompt,
   createUpdateDocumentPrompt,
   formatMessagesForDocument,
-} from "@monorepo/core/agent/prompts/index.ts";
+} from "@topicgen/core/agent/prompts/index.ts";
 
 // Export types from schemas
-export type { Topic, TopicsResult } from "@monorepo/core/agent/schemas.ts";
+export type { Topic, TopicsResult } from "@topicgen/core/agent/schemas.ts";
 
 export class AIService {
   private llmProvider: LLMProvider;

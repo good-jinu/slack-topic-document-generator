@@ -1,5 +1,5 @@
 import { DB } from "sqlite";
-import { Mention, SlackMessage, User } from "@monorepo/core/utils/types.ts";
+import { Mention, SlackMessage, User } from "@topicgen/core/utils/types.ts";
 import { migrateDatabase } from "./migrate.ts";
 
 /**

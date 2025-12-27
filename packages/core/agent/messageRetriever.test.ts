@@ -1,8 +1,8 @@
 import { assertEquals, assertThrows } from "std/assert";
 import { DB } from "sqlite";
-import { getMessagesInTimeRange, getMessagesWithUserMention, getThreadMessages, validateDateRange } from "@monorepo/db/messageQueries.ts";
-import { SlackMessage } from "@monorepo/core/utils/types.ts";
-import { initDatabase, saveMentions, saveMessages, saveUsers } from "@monorepo/db/index.ts";
+import { getMessagesInTimeRange, getMessagesWithUserMention, getThreadMessages, validateDateRange } from "@topicgen/db/messageQueries.ts";
+import { SlackMessage } from "@topicgen/core/utils/types.ts";
+import { initDatabase, saveMentions, saveMessages, saveUsers } from "@topicgen/db/index.ts";
 import { getFilteredMessagesGrouped, MessageFilter } from "./messageRetriever.ts";
 
 // Property-based testing using built-in randomization
@@ -261,7 +261,7 @@ Deno.test("User mention filtering", () => {
 // **Validates: Requirements 4.1, 4.2, 4.3**
 Deno.test("Property 13: Date Format Validation", async () => {
   // Import the parseDate function for testing
-  const { parseDate } = await import("@monorepo/core/agent/index.ts");
+  const { parseDate } = await import("@topicgen/core/agent/index.ts");
 
   for (let i = 0; i < 100; i++) {
     // Generate valid YYYY-MM-DD format dates
@@ -341,7 +341,7 @@ Deno.test("Property 13: Date Format Validation", async () => {
 // **Validates: Requirements 4.1, 4.2, 4.3, 4.4**
 Deno.test("Property 14: Parameter Validation", async () => {
   // Import the parseCommandArgs function for testing
-  const { parseCommandArgs } = await import("@monorepo/core/agent/index.ts");
+  const { parseCommandArgs } = await import("@topicgen/core/agent/index.ts");
 
   for (let i = 0; i < 100; i++) {
     // Generate valid date strings ensuring start <= end

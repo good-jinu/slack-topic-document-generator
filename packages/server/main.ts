@@ -1,4 +1,4 @@
-import { getMessages, getMessageTopicRelations, getTopicById, getTopics, initDatabase } from "@monorepo/db/index.ts";
+import { getMessages, getMessageTopicRelations, getTopicById, getTopics, initDatabase } from "@topicgen/db/index.ts";
 import { DB } from "sqlite";
 
 // Initialize database

@@ -1,5 +1,5 @@
 import { DB } from "sqlite";
-import { getGroupName, getUserName } from "@monorepo/db/index.ts";
+import { getGroupName, getUserName } from "@topicgen/db/index.ts";
 
 /**
  * Parse a raw Slack message text, replacing user mentions like "<@U09CRTF2ELU>"

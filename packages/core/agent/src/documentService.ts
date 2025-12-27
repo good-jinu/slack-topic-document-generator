@@ -1,8 +1,8 @@
 import { DB } from "sqlite";
-import { Logger } from "@monorepo/core/utils/logger.ts";
-import { AppConfig } from "@monorepo/core/config/index.ts";
-import { Topic } from "@monorepo/core/agent/schemas.ts";
-import { getTopicById, saveMessageTopicRelations, saveTopic } from "@monorepo/db/index.ts";
+import { Logger } from "@topicgen/core/utils/logger.ts";
+import { AppConfig } from "@topicgen/core/config/index.ts";
+import { Topic } from "@topicgen/core/agent/schemas.ts";
+import { getTopicById, saveMessageTopicRelations, saveTopic } from "@topicgen/db/index.ts";
 
 export interface DocumentResult {
   topicId: number;

@@ -1,5 +1,5 @@
 import { type SlackAPIClient } from "deno-slack-api/types.ts";
-import { User } from "@monorepo/core/utils/types.ts";
+import { User } from "@topicgen/core/utils/types.ts";
 
 /**
  * Fetch user details for a set of user IDs

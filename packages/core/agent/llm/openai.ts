@@ -10,8 +10,8 @@ import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import { LLMConfig, LLMProvider } from "./index.ts";
-import { Logger } from "@monorepo/core/utils/logger.ts";
-import { RetryOptions, withRetry } from "@monorepo/core/utils/retry.ts";
+import { Logger } from "@topicgen/core/utils/logger.ts";
+import { RetryOptions, withRetry } from "@topicgen/core/utils/retry.ts";
 
 export class OpenAIProvider implements LLMProvider {
   private config: LLMConfig;

@@ -1,5 +1,5 @@
 {
-  "name": "@monorepo/core",
+  "name": "@topicgen/core",
   "version": "0.0.0",
   "exports": {
     "./config/index.ts": "./config/index.ts",

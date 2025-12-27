@@ -1,7 +1,7 @@
-import { initDatabase } from "@monorepo/db/index.ts";
-import { getFilteredMessages, getFilteredMessagesGrouped, MessageFilter } from "@monorepo/core/agent/messageRetriever.ts";
-import { groupedMessagesToMarkdown } from "@monorepo/core/agent/markdownFormatter.ts";
-import { loadConfig } from "@monorepo/core/config/index.ts";
+import { initDatabase } from "@topicgen/db/index.ts";
+import { getFilteredMessages, getFilteredMessagesGrouped, MessageFilter } from "@topicgen/core/agent/messageRetriever.ts";
+import { groupedMessagesToMarkdown } from "@topicgen/core/agent/markdownFormatter.ts";
+import { loadConfig } from "@topicgen/core/config/index.ts";
 import { parseAndValidateDate, validateUserMention } from "./validation.ts";
 import { SlackMessage } from "./types.ts";
 
