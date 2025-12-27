@@ -97,7 +97,7 @@ export class DocumentService {
         await Deno.writeTextFile(existingPath, content);
 
         // Update topic with new information
-        const topicId = saveTopic(db, topic.title, topic.description, existingDoc.filename, undefined, undefined, true);
+        const topicId = saveTopic(db, topic.title, topic.description, existingDoc.filename, topic.message_ids, true);
 
         // Add relations for all message IDs
         const relations = topic.message_ids.map((id) => ({
@@ -128,7 +128,7 @@ export class DocumentService {
     await Deno.writeTextFile(filepath, content);
 
     // Save topic to database
-    const topicId = saveTopic(db, topic.title, topic.description, filename);
+    const topicId = saveTopic(db, topic.title, topic.description, filename, topic.message_ids);
 
     // Add relations for all message IDs
     const relations = topic.message_ids.map((id) => ({

@@ -178,13 +178,85 @@ export function getMessages(db: DB, limit?: number): SlackMessage[] {
   const limitClause = limit ? `LIMIT ${limit}` : "";
   const query = db.queryEntries<SlackMessage>(`
     SELECT 
-      channel_id, channel_name, user_id, user_name, text, ts, thread_id, permalink, created_at, mention_type 
+      id, channel_id, channel_name, user_id, user_name, text, ts, thread_id, permalink, created_at, mention_type 
     FROM messages 
     ORDER BY created_at DESC
     ${limitClause}
   `);
 
   return query;
+}
+
+/**
+ * Get messages by their IDs and include all messages from the same threads
+ */
+export function getMessagesWithThreadsByIds(db: DB, messageIds: number[]): SlackMessage[] {
+  if (messageIds.length === 0) {
+    return [];
+  }
+
+  // First, get the initial messages
+  const placeholders = messageIds.map(() => '?').join(',');
+  const initialMessages = db.queryEntries<SlackMessage & { id: number }>(`
+    SELECT 
+      id, channel_id, channel_name, user_id, user_name, text, ts, thread_id, permalink, created_at, mention_type 
+    FROM messages 
+    WHERE id IN (${placeholders})
+  `, messageIds);
+
+  // Collect all thread IDs from the initial messages
+  const threadIds = new Set<string>();
+  for (const msg of initialMessages) {
+    if (msg.thread_id) {
+      threadIds.add(msg.thread_id);
+    }
+    // Also add the message's own ts as a potential thread_id (for parent messages)
+    threadIds.add(msg.ts);
+  }
+
+  if (threadIds.size === 0) {
+    return initialMessages;
+  }
+
+  // Get all messages that belong to these threads
+  const threadPlaceholders = Array.from(threadIds).map(() => '?').join(',');
+  const threadMessages = db.queryEntries<SlackMessage & { id: number }>(`
+    SELECT 
+      id, channel_id, channel_name, user_id, user_name, text, ts, thread_id, permalink, created_at, mention_type 
+    FROM messages 
+    WHERE thread_id IN (${threadPlaceholders}) OR ts IN (${threadPlaceholders})
+  `, [...threadIds, ...threadIds]);
+
+  // Combine and deduplicate messages
+  const allMessages = new Map<number, SlackMessage & { id: number }>();
+  
+  for (const msg of [...initialMessages, ...threadMessages]) {
+    allMessages.set(msg.id, msg);
+  }
+
+  // Sort by created_at and return
+  return Array.from(allMessages.values()).sort((a, b) => 
+    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+}
+
+/**
+ * Calculate start and end dates from a list of messages
+ */
+export function calculateTopicDateRange(messages: SlackMessage[]): { startDate: string; endDate: string } | null {
+  if (messages.length === 0) {
+    return null;
+  }
+
+  // Sort messages by created_at to ensure proper ordering
+  const sortedMessages = [...messages].sort((a, b) => 
+    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+
+  return {
+    startDate: sortedMessages[0].created_at,
+    endDate: sortedMessages[sortedMessages.length - 1].created_at
+  };
 }
 
 /**
@@ -280,11 +352,23 @@ export function saveTopic(
   title: string,
   description?: string,
   fileName?: string,
-  startDate?: string,
-  endDate?: string,
+  messageIds?: number[],
   isUpdate = false,
 ): number {
   const now = new Date().toISOString();
+  
+  // Calculate start_date and end_date from message IDs if provided
+  let startDate: string | null = null;
+  let endDate: string | null = null;
+  
+  if (messageIds && messageIds.length > 0) {
+    const relatedMessages = getMessagesWithThreadsByIds(db, messageIds);
+    const dateRange = calculateTopicDateRange(relatedMessages);
+    if (dateRange) {
+      startDate = dateRange.startDate;
+      endDate = dateRange.endDate;
+    }
+  }
 
   if (isUpdate && fileName) {
     // Update existing topic by file_name
@@ -292,7 +376,7 @@ export function saveTopic(
       UPDATE topics SET title = ?, description = ?, start_date = ?, end_date = ?, updated_at = ? WHERE file_name = ?
     `);
     try {
-      stmt.execute([title, description || null, startDate || null, endDate || null, now, fileName]);
+      stmt.execute([title, description || null, startDate, endDate, now, fileName]);
     } finally {
       stmt.finalize();
     }
@@ -310,7 +394,7 @@ export function saveTopic(
       const existing = getTopicByFileName(db, fileName);
       if (existing) {
         console.log(`Topic already exists, updating instead: ${fileName}`);
-        return saveTopic(db, title, description, fileName, startDate, endDate, true);
+        return saveTopic(db, title, description, fileName, messageIds, true);
       }
     }
 
@@ -321,12 +405,12 @@ export function saveTopic(
     `);
 
     try {
-      stmt.execute([title, description || null, fileName || null, startDate || null, endDate || null, now, now]);
+      stmt.execute([title, description || null, fileName || null, startDate, endDate, now, now]);
       console.log(`Saved topic: ${title}`);
     } catch (error) {
       if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
         console.log(`Topic already exists due to race condition, updating instead: ${fileName}`);
-        return saveTopic(db, title, description, fileName, startDate, endDate, true);
+        return saveTopic(db, title, description, fileName, messageIds, true);
       }
       throw error;
     } finally {
