@@ -1,5 +1,5 @@
 import { DB } from "sqlite";
-import { SlackMessage } from "../utils/types.ts";
+import { SlackMessage } from "@/shared/utils/types.ts";
 
 /**
  * Validates date range inputs

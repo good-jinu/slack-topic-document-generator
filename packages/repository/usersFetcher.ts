@@ -1,5 +1,5 @@
 import { type SlackAPIClient } from "deno-slack-api/types.ts";
-import { User } from "../utils/types.ts";
+import { User } from "@/shared/utils/types.ts";
 
 /**
  * Fetch user details for a set of user IDs

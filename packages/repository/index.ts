@@ -1,7 +1,7 @@
 import { SlackAPI } from "deno-slack-api/mod.ts";
 import { load } from "std/dotenv";
-import { initDatabase, saveMentions, saveMessages, saveUsers } from "../db/index.ts";
-import { Mention, SlackMessage } from "../utils/types.ts";
+import { initDatabase, saveMentions, saveMessages, saveUsers } from "@/db/index.ts";
+import { Mention, SlackMessage } from "@/shared/utils/types.ts";
 import { getAllUserGroups, getUserGroups } from "./userGroups.ts";
 import { fetchChannelMessages } from "./messagesFetcher.ts";
 import { fetchUsers } from "./usersFetcher.ts";

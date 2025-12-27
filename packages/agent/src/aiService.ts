@@ -1,21 +1,21 @@
 import { DB } from "sqlite";
-import { SlackMessage } from "../utils/types.ts";
-import { parseMessage } from "../agent/messageParser.ts";
-import { Logger } from "../utils/logger.ts";
-import { AppConfig } from "../config/index.ts";
-import { createLLMProvider, LLMProvider } from "../agent/llm/index.ts";
-import { Topic, TopicsResult, TopicsResultSchema } from "../agent/schemas.ts";
-import { getTopics } from "../db/index.ts";
+import { SlackMessage } from "@/shared/utils/types.ts";
+import { parseMessage } from "@/agent/messageParser.ts";
+import { Logger } from "@/shared/utils/logger.ts";
+import { AppConfig } from "@/shared/config/index.ts";
+import { createLLMProvider, LLMProvider } from "@/agent/llm/index.ts";
+import { Topic, TopicsResult, TopicsResultSchema } from "@/agent/schemas.ts";
+import { getTopics } from "@/db/index.ts";
 import {
   createNewDocumentPrompt,
   createTopicAnalysisPrompt,
   createTopicFormattingAndMatchingPrompt,
   createUpdateDocumentPrompt,
   formatMessagesForDocument,
-} from "../agent/prompts/index.ts";
+} from "@/agent/prompts/index.ts";
 
 // Export types from schemas
-export type { Topic, TopicsResult } from "../agent/schemas.ts";
+export type { Topic, TopicsResult } from "@/agent/schemas.ts";
 
 export class AIService {
   private llmProvider: LLMProvider;

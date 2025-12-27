@@ -1,7 +1,7 @@
 import { DB } from "sqlite";
-import { Logger } from "../utils/logger.ts";
-import { AppConfig } from "../config/index.ts";
-import { initDatabase } from "../db/index.ts";
+import { Logger } from "@/shared/utils/logger.ts";
+import { AppConfig } from "@/shared/config/index.ts";
+import { initDatabase } from "@/db/index.ts";
 
 export class DatabaseService {
   private config: AppConfig;

@@ -1,5 +1,5 @@
 import { DB } from "sqlite";
-import { Mention, SlackMessage, User } from "../utils/types.ts";
+import { Mention, SlackMessage, User } from "@/shared/utils/types.ts";
 import { migrateDatabase } from "./migrate.ts";
 
 /**

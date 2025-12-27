@@ -1,12 +1,12 @@
 import { DB } from "sqlite";
-import { getTopicById, initDatabase } from "../db/index.ts";
+import { getTopicById, initDatabase } from "@/db/index.ts";
 import { groupedMessagesToMarkdown } from "./markdownFormatter.ts";
 import { getFilteredMessagesGrouped, MessageFilter } from "./messageRetriever.ts";
-import { AppConfig, loadConfig, validateConfig } from "../config/index.ts";
-import { Logger } from "../utils/logger.ts";
-import * as validation from "../utils/validation.ts";
-import { AIService } from "../services/aiService.ts";
-import { DocumentService } from "../services/documentService.ts";
+import { AppConfig, loadConfig, validateConfig } from "@/shared/config/index.ts";
+import { Logger } from "@/shared/utils/logger.ts";
+import * as validation from "@/shared/utils/validation.ts";
+import { AIService } from "@/agent/src/aiService.ts";
+import { DocumentService } from "@/agent/src/documentService.ts";
 
 /**
  * Interface for command line arguments

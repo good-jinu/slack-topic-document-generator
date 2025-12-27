@@ -6,7 +6,7 @@
  */
 
 import { z } from "zod";
-import { AppConfig } from "../../config/index.ts";
+import { AppConfig } from "@/shared/config/index.ts";
 import { GoogleGenAIProvider } from "./google-genai.ts";
 import { MockLLMProvider } from "./mock-provider.ts";
 import { OpenAIProvider } from "./openai.ts";

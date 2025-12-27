@@ -1,12 +1,12 @@
 import { DB } from "sqlite";
-import { SlackMessage } from "../utils/types.ts";
+import { SlackMessage } from "@/shared/utils/types.ts";
 import {
   getMessagesFromUsers,
   getMessagesInTimeRange,
   getMessagesWithMultipleUserMentions,
   getThreadMessages,
   validateDateRange,
-} from "../db/messageQueries.ts";
+} from "@/db/messageQueries.ts";
 
 /**
  * Interface for message filtering options
