@@ -1,12 +1,12 @@
 import { DB } from "sqlite";
-import { SlackMessage } from "@/core/utils/types.ts";
+import { SlackMessage } from "@monorepo/core/utils/types.ts";
 import {
   getMessagesFromUsers,
   getMessagesInTimeRange,
   getMessagesWithMultipleUserMentions,
   getThreadMessages,
   validateDateRange,
-} from "@/db/messageQueries.ts";
+} from "@monorepo/db/messageQueries.ts";
 
 /**
  * Interface for message filtering options

@@ -1,5 +1,5 @@
 import { DB } from "sqlite";
-import { SlackMessage } from "@/core/utils/types.ts";
+import { SlackMessage } from "@monorepo/core/utils/types.ts";
 
 /**
  * Validates date range inputs

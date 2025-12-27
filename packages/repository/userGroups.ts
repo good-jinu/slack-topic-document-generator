@@ -1,5 +1,5 @@
 import { type SlackAPIClient } from "deno-slack-api/types.ts";
-import { Group } from "@/core/utils/types.ts";
+import { Group } from "@monorepo/core/utils/types.ts";
 
 /**
  * Get user groups that the user belongs to

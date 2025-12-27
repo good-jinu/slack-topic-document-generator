@@ -1,12 +1,12 @@
 import { DB } from "sqlite";
-import { getTopicById, initDatabase } from "@/db/index.ts";
+import { getTopicById, initDatabase } from "@monorepo/db/index.ts";
 import { groupedMessagesToMarkdown } from "./markdownFormatter.ts";
 import { getFilteredMessagesGrouped, MessageFilter } from "./messageRetriever.ts";
-import { AppConfig, loadConfig, validateConfig } from "@/core/config/index.ts";
-import { Logger } from "@/core/utils/logger.ts";
-import * as validation from "@/core/utils/validation.ts";
-import { AIService } from "@/core/agent/src/aiService.ts";
-import { DocumentService } from "@/core/agent/src/documentService.ts";
+import { AppConfig, loadConfig, validateConfig } from "@monorepo/core/config/index.ts";
+import { Logger } from "@monorepo/core/utils/logger.ts";
+import * as validation from "@monorepo/core/utils/validation.ts";
+import { AIService } from "@monorepo/core/agent/src/aiService.ts";
+import { DocumentService } from "@monorepo/core/agent/src/documentService.ts";
 
 /**
  * Interface for command line arguments

@@ -1,7 +1,7 @@
 import { DB } from "sqlite";
-import { Logger } from "@/core/utils/logger.ts";
-import { AppConfig } from "@/core/config/index.ts";
-import { initDatabase } from "@/db/index.ts";
+import { Logger } from "@monorepo/core/utils/logger.ts";
+import { AppConfig } from "@monorepo/core/config/index.ts";
+import { initDatabase } from "@monorepo/db/index.ts";
 
 export class DatabaseService {
   private config: AppConfig;

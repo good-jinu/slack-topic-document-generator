@@ -5,8 +5,8 @@
 import { GoogleGenerativeAI, ResponseSchema } from "@google/generative-ai";
 import { z } from "zod";
 import { LLMConfig, LLMProvider } from "./index.ts";
-import { Logger } from "@/core/utils/logger.ts";
-import { RetryOptions, withRetry } from "@/core/utils/retry.ts";
+import { Logger } from "@monorepo/core/utils/logger.ts";
+import { RetryOptions, withRetry } from "@monorepo/core/utils/retry.ts";
 
 export class GoogleGenAIProvider implements LLMProvider {
   private genAI: GoogleGenerativeAI;

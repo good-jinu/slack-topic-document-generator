@@ -6,7 +6,7 @@
  */
 
 import { z } from "zod";
-import { AppConfig } from "@/core/config/index.ts";
+import { AppConfig } from "@monorepo/core/config/index.ts";
 import { GoogleGenAIProvider } from "./google-genai.ts";
 import { MockLLMProvider } from "./mock-provider.ts";
 import { OpenAIProvider } from "./openai.ts";

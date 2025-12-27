@@ -34,12 +34,14 @@
     "@google/generative-ai": "https://esm.sh/@google/generative-ai@0.21.0",
     "zod": "npm:zod@4.2.1",
     "openai": "npm:openai@^4.0.0",
-    "api": "npm:api@^6.1.3",
-    "@/repository/": "./packages/repository/",
-    "@/core/": "./packages/core/",
-    "@/server/": "./packages/server/",
-    "@/db/": "./packages/db/"
+    "api": "npm:api@^6.1.3"
   },
+  "workspace": [
+    "./packages/repository",
+    "./packages/core",
+    "./packages/server",
+    "./packages/db"
+  ],
   "fmt": {
     "useTabs": false,
     "lineWidth": 160,
