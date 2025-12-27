@@ -7,7 +7,7 @@
 
 import { z } from "zod";
 import { LLMConfig, LLMProvider } from "./index.ts";
-import { Logger } from "@/shared/utils/logger.ts";
+import { Logger } from "@/core/utils/logger.ts";
 
 export class MockLLMProvider implements LLMProvider {
   private config: LLMConfig;

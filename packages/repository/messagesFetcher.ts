@@ -1,5 +1,5 @@
 import { type SlackAPIClient } from "deno-slack-api/types.ts";
-import { Mention, SlackMessage } from "@/shared/utils/types.ts";
+import { Mention, SlackMessage } from "@/core/utils/types.ts";
 import { dateToSlackTs, extractGroupMentions, extractMentions, slackTsToISODate } from "./utils.ts";
 
 /**

@@ -1,7 +1,7 @@
 import { DB } from "sqlite";
-import { Logger } from "@/shared/utils/logger.ts";
-import { AppConfig } from "@/shared/config/index.ts";
-import { Topic } from "@/agent/schemas.ts";
+import { Logger } from "@/core/utils/logger.ts";
+import { AppConfig } from "@/core/config/index.ts";
+import { Topic } from "@/core/agent/schemas.ts";
 import { getTopicById, saveMessageTopicRelations, saveTopic } from "@/db/index.ts";
 
 export interface DocumentResult {

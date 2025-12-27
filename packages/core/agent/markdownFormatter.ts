@@ -1,5 +1,5 @@
 import { DB } from "sqlite";
-import { SlackMessage } from "@/shared/utils/types.ts";
+import { SlackMessage } from "@/core/utils/types.ts";
 import { parseMessage } from "./messageParser.ts";
 import { GroupedMessages, MessageThread } from "./messageRetriever.ts";
 

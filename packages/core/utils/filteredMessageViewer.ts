@@ -1,7 +1,7 @@
 import { initDatabase } from "@/db/index.ts";
-import { getFilteredMessages, getFilteredMessagesGrouped, MessageFilter } from "@/agent/messageRetriever.ts";
-import { groupedMessagesToMarkdown } from "@/agent/markdownFormatter.ts";
-import { loadConfig } from "@/shared/config/index.ts";
+import { getFilteredMessages, getFilteredMessagesGrouped, MessageFilter } from "@/core/agent/messageRetriever.ts";
+import { groupedMessagesToMarkdown } from "@/core/agent/markdownFormatter.ts";
+import { loadConfig } from "@/core/config/index.ts";
 import { parseAndValidateDate, validateUserMention } from "./validation.ts";
 import { SlackMessage } from "./types.ts";
 
