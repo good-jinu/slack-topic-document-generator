@@ -11,7 +11,7 @@
     "deploy": "deno run --env-file --allow-all src/deploy.ts",
 
     // Database management tasks
-    "db:clear-documents": "deno run --allow-read --allow-write src/db/clear-documents.ts",
+    "db:clear-topics": "deno run --allow-read --allow-write src/db/clear-topics.ts",
     "db:migrate": "deno run --allow-read --allow-write src/db/migrate.ts",
 
     // Development and utility tasks

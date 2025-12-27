@@ -1,6 +1,6 @@
 # Slack Topic Document Generator
 
-A powerful tool to crawl Slack messages, analyze conversations, and automatically generate documentation using AI. This project helps teams capture knowledge from Slack discussions and transform them into organized, searchable documents.
+A powerful tool to crawl Slack messages, analyze conversations, and automatically generate documentation using AI. This project helps teams capture knowledge from Slack discussions and transform them into organized, searchable documents with comprehensive topic tracking.
 
 ## Features
 
@@ -8,10 +8,11 @@ A powerful tool to crawl Slack messages, analyze conversations, and automaticall
 - **User and Group Mention Filtering**: Generate documents for specific user or group mentions with support for multiple filters
 - **Merged User/Group Management**: Unified handling of users and groups in a single database table
 - **AI-Powered Analysis**: Use Google Gemini, OpenAI, or compatible AI providers to identify topics and generate documentation
+- **Enhanced Topic Management**: Store topics with titles, descriptions, date ranges, and associated documents
 - **Document Management**: Automatically create and update markdown documents from conversation topics
 - **Robust Architecture**: Built with TypeScript, comprehensive error handling, and retry logic
 - **Configurable Logging**: Structured logging with multiple levels
-- **Database Storage**: Store messages, users, and relationships in SQLite database with backup support
+- **Database Storage**: Store messages, users, topics, and relationships in SQLite database with backup support
 
 ## Prerequisites
 
@@ -159,7 +160,8 @@ This will:
 - Analyze messages in the date range (optionally filtered by user/group mentions)
 - Use AI to identify discussion topics with retry logic
 - Generate or update markdown documents in configured output directory
-- Link documents to original messages in database
+- Store topic metadata including titles, descriptions, and date ranges
+- Link topics to original messages in database
 
 #### View Stored Data
 
@@ -171,17 +173,18 @@ Shows a summary of:
 
 - Recent messages
 - Users in database
+- Groups in database
 - Mentions tracked
-- Generated documents
-- Message-document relationships
+- Generated topics and documents
+- Message-topic relationships
 
 #### Database Management
 
 ```bash
-# Clear all documents and relations
-deno task db:clear-documents
+# Clear all topics and relations
+deno task db:clear-topics
 
-# Migrate existing database to new schema (merges groups into users table)
+# Migrate existing database to new schema (merges groups into users table, converts documents to topics)
 deno task db:migrate
 ```
 
@@ -218,45 +221,6 @@ deno task dev:crawl-and-generate
 ```
 
 Runs crawling followed by document generation.
-
-## Project Structure
-
-```
-src/
-├── config/            # Configuration management
-│   └── index.ts       # App configuration and validation
-├── services/          # Business logic services
-│   ├── aiService.ts   # Google AI integration with retry
-│   ├── documentService.ts  # Document creation and management
-│   └── databaseService.ts  # Enhanced database operations
-├── utils/             # Shared utilities
-│   ├── logger.ts      # Structured logging
-│   ├── retry.ts       # Retry mechanisms
-│   ├── validation.ts  # Input validation
-│   └── types.ts       # TypeScript interfaces
-├── agent/             # Document generation logic
-│   ├── index.ts       # Main generator entry point
-│   ├── messageRetriever.ts  # Message filtering and retrieval
-│   ├── messageParser.ts     # Slack message parsing
-│   └── markdownFormatter.ts # Message formatting
-├── crawler/           # Slack message crawling
-│   ├── index.ts       # Main crawler entry point
-│   ├── messagesFetcher.ts
-│   ├── userGroups.ts
-│   ├── usersFetcher.ts
-│   └── utils.ts
-├── db/                # Database operations
-│   ├── index.ts       # Database initialization and CRUD
-│   ├── messageQueries.ts  # Specialized message queries
-│   └── clear-documents.ts # Database cleanup
-└── deploy.ts          # Slack app deployment
-
-docs/                  # Documentation
-├── ARCHITECTURE.md    # Detailed architecture documentation
-
-db_docs/              # Generated documentation (configurable)
-slack_messages.db     # SQLite database (configurable)
-```
 
 ## Configuration
 
@@ -339,11 +303,17 @@ Set `LOG_LEVEL=debug` in your `.env` file for detailed logging.
 
 ### Database Issues
 
-If database gets corrupted:
+If database gets corrupted or you need to reset:
 
 ```bash
 rm slack_messages.db
 deno task crawl  # Re-crawl data
+```
+
+To clear just topics while keeping messages:
+
+```bash
+deno task db:clear-topics
 ```
 
 ## Contributing

@@ -2,10 +2,10 @@ import { DB } from "sqlite";
 import { Logger } from "../utils/logger.ts";
 import { AppConfig } from "../config/index.ts";
 import { Topic } from "./aiService.ts";
-import { getDocumentByName, saveDocument, saveMessageDocumentRelations } from "../db/index.ts";
+import { getTopicByFileName, saveMessageTopicRelations, saveTopic } from "../db/index.ts";
 
 export interface DocumentResult {
-  documentId: number;
+  topicId: number;
   filename: string;
   isUpdate: boolean;
 }
@@ -73,10 +73,10 @@ export class DocumentService {
             searchTitle: title,
           });
 
-          // Get document from database
-          const document = getDocumentByName(db, file);
-          if (document) {
-            return { id: document.id, name: file };
+          // Get topic from database
+          const topic = getTopicByFileName(db, file);
+          if (topic) {
+            return { id: topic.id, name: file };
           }
         }
       }
@@ -138,23 +138,23 @@ export class DocumentService {
       const existingPath = `${this.config.output.documentsPath}/${existingDoc.name}`;
       await Deno.writeTextFile(existingPath, content);
 
-      // Update document timestamp
-      const documentId = saveDocument(db, existingDoc.name, true);
+      // Update topic with new information
+      const topicId = saveTopic(db, topic.title, topic.description, existingDoc.name, undefined, undefined, true);
 
       // Add relations for all message IDs
       const relations = topic.message_ids.map((id) => ({
         message_id: id,
-        document_id: documentId,
+        topic_id: topicId,
       }));
-      saveMessageDocumentRelations(db, relations);
+      saveMessageTopicRelations(db, relations);
 
       Logger.info(`Document updated successfully: ${existingDoc.name}`, {
-        documentId,
+        topicId,
         messageCount: topic.message_ids.length,
       });
 
       return {
-        documentId,
+        topicId,
         filename: existingDoc.name,
         isUpdate: true,
       };
@@ -163,23 +163,23 @@ export class DocumentService {
 
       await Deno.writeTextFile(filepath, content);
 
-      // Save document to database
-      const documentId = saveDocument(db, filename, false);
+      // Save topic to database
+      const topicId = saveTopic(db, topic.title, topic.description, filename);
 
       // Add relations for all message IDs
       const relations = topic.message_ids.map((id) => ({
         message_id: id,
-        document_id: documentId,
+        topic_id: topicId,
       }));
-      saveMessageDocumentRelations(db, relations);
+      saveMessageTopicRelations(db, relations);
 
       Logger.info(`Document created successfully: ${filename}`, {
-        documentId,
+        topicId,
         messageCount: topic.message_ids.length,
       });
 
       return {
-        documentId,
+        topicId,
         filename,
         isUpdate: false,
       };

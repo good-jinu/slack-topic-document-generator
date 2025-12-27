@@ -1,4 +1,4 @@
-import { getDocuments, getGroups, getMentions, getMessageDocumentRelations, getMessages, getUsers, initDatabase } from "../db/index.ts";
+import { getGroups, getMentions, getMessages, getMessageTopicRelations, getTopics, getUsers, initDatabase } from "../db/index.ts";
 
 /**
  * Main viewer function
@@ -71,42 +71,47 @@ function viewData() {
       console.log("No mentions found.");
     }
 
-    // View Documents
-    const documents = getDocuments(db, limit);
-    console.log(`\n=== Last ${documents.length} documents in database ===\n`);
-    if (documents.length > 0) {
+    // View Topics
+    const topics = getTopics(db, limit);
+    console.log(`\n=== Last ${topics.length} topics in database ===\n`);
+    if (topics.length > 0) {
       console.table(
-        documents.map((doc) => ({
-          ID: doc.id,
-          Name: doc.name,
-          "Created At": new Date(doc.created_at).toLocaleString(),
-          "Updated At": new Date(doc.updated_at).toLocaleString(),
+        topics.map((topic) => ({
+          ID: topic.id,
+          Title: topic.title,
+          Description: topic.description ? (topic.description.length > 30 ? topic.description.slice(0, 30) + "..." : topic.description) : "-",
+          "File Name": topic.file_name || "-",
+          "Start Date": topic.start_date ? new Date(topic.start_date).toLocaleDateString() : "-",
+          "End Date": topic.end_date ? new Date(topic.end_date).toLocaleDateString() : "-",
+          "Created At": new Date(topic.created_at).toLocaleString(),
+          "Updated At": new Date(topic.updated_at).toLocaleString(),
         })),
       );
     } else {
-      console.log("No documents found.");
+      console.log("No topics found.");
     }
 
-    // View Message-Document Relations
-    const relations = getMessageDocumentRelations(
+    // View Message-Topic Relations
+    const relations = getMessageTopicRelations(
       db,
       undefined,
       undefined,
       limit,
     );
     console.log(
-      `\n=== Last ${relations.length} message-document relations in database ===\n`,
+      `\n=== Last ${relations.length} message-topic relations in database ===\n`,
     );
     if (relations.length > 0) {
       console.table(
         relations.map((rel) => ({
           "Message ID": rel.message_id,
-          "Document ID": rel.document_id,
-          "Document Name": rel.document_name,
+          "Topic ID": rel.topic_id,
+          "Topic Title": rel.topic_title,
+          "Topic File": rel.topic_file_name || "-",
         })),
       );
     } else {
-      console.log("No message-document relations found.");
+      console.log("No message-topic relations found.");
     }
   } catch (error) {
     console.error("Error viewing data:", error);

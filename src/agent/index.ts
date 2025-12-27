@@ -215,7 +215,7 @@ export async function generateDocuments(
         database,
       );
       Logger.info(
-        `Document ${result.isUpdate ? "updated" : "created"}: ${result.filename} (ID: ${result.documentId})`,
+        `Document ${result.isUpdate ? "updated" : "created"}: ${result.filename} (ID: ${result.topicId})`,
       );
     }
 

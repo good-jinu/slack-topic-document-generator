@@ -48,21 +48,25 @@ export function initDatabase(dbPath = "slack_messages.db"): DB {
   `);
 
   db.execute(`
-    CREATE TABLE IF NOT EXISTS documents (
+    CREATE TABLE IF NOT EXISTS topics (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
+      title TEXT NOT NULL,
+      description TEXT,
+      file_name TEXT UNIQUE,
+      start_date TEXT,
+      end_date TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )
   `);
 
   db.execute(`
-    CREATE TABLE IF NOT EXISTS message_document_relations (
+    CREATE TABLE IF NOT EXISTS message_topic_relations (
       message_id INTEGER NOT NULL,
-      document_id INTEGER NOT NULL,
-      PRIMARY KEY (message_id, document_id),
+      topic_id INTEGER NOT NULL,
+      PRIMARY KEY (message_id, topic_id),
       FOREIGN KEY (message_id) REFERENCES messages(id),
-      FOREIGN KEY (document_id) REFERENCES documents(id)
+      FOREIGN KEY (topic_id) REFERENCES topics(id)
     )
   `);
 
@@ -269,102 +273,175 @@ export function getMentions(
 }
 
 /**
- * Insert or update documents in SQLite database
+ * Insert or update topics in SQLite database
  */
-export function saveDocument(
+export function saveTopic(
   db: DB,
-  name: string,
+  title: string,
+  description?: string,
+  fileName?: string,
+  startDate?: string,
+  endDate?: string,
   isUpdate = false,
 ): number {
   const now = new Date().toISOString();
 
-  if (isUpdate) {
-    // Update existing document
+  if (isUpdate && fileName) {
+    // Update existing topic by file_name
     const stmt = db.prepareQuery(`
-      UPDATE documents SET updated_at = ? WHERE name = ?
+      UPDATE topics SET title = ?, description = ?, start_date = ?, end_date = ?, updated_at = ? WHERE file_name = ?
     `);
     try {
-      stmt.execute([now, name]);
+      stmt.execute([title, description || null, startDate || null, endDate || null, now, fileName]);
     } finally {
       stmt.finalize();
     }
 
-    // Get the document ID
+    // Get the topic ID
     const result = db.queryEntries<{ id: number }>(
-      `
-      SELECT id FROM documents WHERE name = ?
-    `,
-      [name],
+      `SELECT id FROM topics WHERE file_name = ?`,
+      [fileName],
     );
 
     return result[0].id;
   } else {
-    // Check if document already exists
-    const existing = getDocumentByName(db, name);
-    if (existing) {
-      console.log(`Document already exists, updating instead: ${name}`);
-      return saveDocument(db, name, true);
+    // Check if topic already exists by file_name
+    if (fileName) {
+      const existing = getTopicByFileName(db, fileName);
+      if (existing) {
+        console.log(`Topic already exists, updating instead: ${fileName}`);
+        return saveTopic(db, title, description, fileName, startDate, endDate, true);
+      }
     }
 
-    // Insert new document
+    // Insert new topic
     const stmt = db.prepareQuery(`
-      INSERT INTO documents (name, created_at, updated_at)
-      VALUES (?, ?, ?)
+      INSERT INTO topics (title, description, file_name, start_date, end_date, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
     try {
-      stmt.execute([name, now, now]);
-      console.log(`Saved document: ${name}`);
+      stmt.execute([title, description || null, fileName || null, startDate || null, endDate || null, now, now]);
+      console.log(`Saved topic: ${title}`);
     } catch (error) {
       if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
-        console.log(`Document already exists due to race condition, updating instead: ${name}`);
-        return saveDocument(db, name, true);
+        console.log(`Topic already exists due to race condition, updating instead: ${fileName}`);
+        return saveTopic(db, title, description, fileName, startDate, endDate, true);
       }
       throw error;
     } finally {
       stmt.finalize();
     }
 
-    // Get the inserted document ID
+    // Get the inserted topic ID
     const insertedId = db.lastInsertRowId;
     if (typeof insertedId !== "number") {
-      throw new Error("Failed to get inserted document ID");
+      throw new Error("Failed to get inserted topic ID");
     }
     return insertedId;
   }
 }
 
 /**
- * Get document by name
+ * Get topic by file name
  */
-export function getDocumentByName(
+export function getTopicByFileName(
   db: DB,
-  name: string,
-): { id: number; name: string; created_at: string; updated_at: string } | null {
+  fileName: string,
+): {
+  id: number;
+  title: string;
+  description: string | null;
+  file_name: string;
+  start_date: string | null;
+  end_date: string | null;
+  created_at: string;
+  updated_at: string;
+} | null {
   const result = db.queryEntries<
-    { id: number; name: string; created_at: string; updated_at: string }
+    {
+      id: number;
+      title: string;
+      description: string | null;
+      file_name: string;
+      start_date: string | null;
+      end_date: string | null;
+      created_at: string;
+      updated_at: string;
+    }
   >(
-    `
-    SELECT id, name, created_at, updated_at FROM documents WHERE name = ?
-  `,
-    [name],
+    `SELECT id, title, description, file_name, start_date, end_date, created_at, updated_at FROM topics WHERE file_name = ?`,
+    [fileName],
   );
 
   return result.length > 0 ? result[0] : null;
 }
 
 /**
- * Get all documents
+ * Get topic by ID
  */
-export function getDocuments(
+export function getTopicById(
+  db: DB,
+  id: number,
+): {
+  id: number;
+  title: string;
+  description: string | null;
+  file_name: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  created_at: string;
+  updated_at: string;
+} | null {
+  const result = db.queryEntries<
+    {
+      id: number;
+      title: string;
+      description: string | null;
+      file_name: string | null;
+      start_date: string | null;
+      end_date: string | null;
+      created_at: string;
+      updated_at: string;
+    }
+  >(
+    `SELECT id, title, description, file_name, start_date, end_date, created_at, updated_at FROM topics WHERE id = ?`,
+    [id],
+  );
+
+  return result.length > 0 ? result[0] : null;
+}
+
+/**
+ * Get all topics
+ */
+export function getTopics(
   db: DB,
   limit?: number,
-): { id: number; name: string; created_at: string; updated_at: string }[] {
+): {
+  id: number;
+  title: string;
+  description: string | null;
+  file_name: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  created_at: string;
+  updated_at: string;
+}[] {
   const limitClause = limit ? `LIMIT ${limit}` : "";
   const query = db.queryEntries<
-    { id: number; name: string; created_at: string; updated_at: string }
+    {
+      id: number;
+      title: string;
+      description: string | null;
+      file_name: string | null;
+      start_date: string | null;
+      end_date: string | null;
+      created_at: string;
+      updated_at: string;
+    }
   >(`
-    SELECT id, name, created_at, updated_at FROM documents 
+    SELECT id, title, description, file_name, start_date, end_date, created_at, updated_at FROM topics 
     ORDER BY updated_at DESC
     ${limitClause}
   `);
@@ -372,23 +449,23 @@ export function getDocuments(
 }
 
 /**
- * Insert message-document relations into SQLite database
+ * Insert message-topic relations into SQLite database
  */
-export function saveMessageDocumentRelations(
+export function saveMessageTopicRelations(
   db: DB,
-  relations: { message_id: number; document_id: number }[],
+  relations: { message_id: number; topic_id: number }[],
 ) {
   const stmt = db.prepareQuery(`
-    INSERT OR REPLACE INTO message_document_relations (message_id, document_id)
+    INSERT OR REPLACE INTO message_topic_relations (message_id, topic_id)
     VALUES (?, ?)
   `);
 
   try {
     for (const relation of relations) {
-      stmt.execute([relation.message_id, relation.document_id]);
+      stmt.execute([relation.message_id, relation.topic_id]);
     }
     console.log(
-      `Saved ${relations.length} message-document relations to database`,
+      `Saved ${relations.length} message-topic relations to database`,
     );
   } finally {
     stmt.finalize();
@@ -396,36 +473,36 @@ export function saveMessageDocumentRelations(
 }
 
 /**
- * Fetch message-document relations from the database
+ * Fetch message-topic relations from the database
  */
-export function getMessageDocumentRelations(
+export function getMessageTopicRelations(
   db: DB,
   messageId?: number,
-  documentId?: number,
+  topicId?: number,
   limit?: number,
-): { message_id: number; document_id: number; document_name?: string }[] {
+): { message_id: number; topic_id: number; topic_title?: string; topic_file_name?: string | null }[] {
   let whereClause = "";
   const params: number[] = [];
 
   if (messageId !== undefined) {
-    whereClause = "WHERE mdr.message_id = ?";
+    whereClause = "WHERE mtr.message_id = ?";
     params.push(messageId);
-  } else if (documentId !== undefined) {
-    whereClause = "WHERE mdr.document_id = ?";
-    params.push(documentId);
+  } else if (topicId !== undefined) {
+    whereClause = "WHERE mtr.topic_id = ?";
+    params.push(topicId);
   }
 
   const limitClause = limit ? `LIMIT ${limit}` : "";
 
   const query = db.queryEntries<
-    { message_id: number; document_id: number; document_name: string }
+    { message_id: number; topic_id: number; topic_title: string; topic_file_name: string | null }
   >(
     `
-    SELECT mdr.message_id, mdr.document_id, d.name as document_name 
-    FROM message_document_relations mdr
-    JOIN documents d ON mdr.document_id = d.id
+    SELECT mtr.message_id, mtr.topic_id, t.title as topic_title, t.file_name as topic_file_name 
+    FROM message_topic_relations mtr
+    JOIN topics t ON mtr.topic_id = t.id
     ${whereClause}
-    ORDER BY mdr.message_id DESC
+    ORDER BY mtr.message_id DESC
     ${limitClause}
   `,
     params,
@@ -435,19 +512,19 @@ export function getMessageDocumentRelations(
 }
 
 /**
- * Clear all documents and related message-document relations
+ * Clear all topics and related message-topic relations
  */
-export function clearDocuments(db: DB): void {
+export function clearTopics(db: DB): void {
   try {
-    // Delete all message-document relations first (due to foreign key constraints)
-    db.execute("DELETE FROM message_document_relations");
+    // Delete all message-topic relations first (due to foreign key constraints)
+    db.execute("DELETE FROM message_topic_relations");
 
-    // Delete all documents
-    db.execute("DELETE FROM documents");
+    // Delete all topics
+    db.execute("DELETE FROM topics");
 
-    console.log("Cleared all documents and related relations from database");
+    console.log("Cleared all topics and related relations from database");
   } catch (error) {
-    console.error("Error clearing documents:", error);
+    console.error("Error clearing topics:", error);
     throw error;
   }
 }
