@@ -1,24 +1,24 @@
 {
   "tasks": {
     // Main application tasks
-    "crawl": "deno run --env-file --allow-all src/crawler/index.ts",
+    "crawl": "deno run --env-file --allow-all packages/repository/index.ts",
     "crawl:help": "echo 'Usage: deno task crawl [start-date] [end-date]' && echo 'Date format: YYYY-MM-DD' && echo 'Example: deno task crawl 2025-12-01 2025-12-24'",
-    "generate": "deno run --env-file --allow-all src/agent/index.ts",
+    "generate": "deno run --env-file --allow-all packages/core/agent/index.ts",
     "generate:help": "echo 'Usage: deno task generate <start-date> <end-date> [user1] [user2] ...' && echo 'Date format: YYYY-MM-DD' && echo 'Users/Groups: @username, username, <@U123456>, U123456, groupname' && echo 'Example: deno task generate 2025-12-01 2025-12-24 @john.doe @team-leads'",
-    "filteredMessage": "deno run --env-file --allow-all src/utils/filteredMessageViewer.ts",
+    "filteredMessage": "deno run --env-file --allow-all packages/core/utils/filteredMessageViewer.ts",
     "filteredMessage:help": "echo 'Usage: deno task filteredMessage <start-date> <end-date> [options] [user-mentions...]' && echo 'Date format: YYYY-MM-DD' && echo 'Options: --include-threads (-t), --markdown (-m)' && echo 'Users/Groups: @username, username, <@U123456>, U123456, groupname' && echo 'Example: deno task filteredMessage 2025-12-01 2025-12-24 -t -m @john.doe'",
-    "view": "deno run --allow-all src/utils/viewer.ts",
-    "deploy": "deno run --env-file --allow-all src/deploy.ts",
-    "serve": "deno run --allow-net --allow-read src/server/serve.ts",
+    "view": "deno run --allow-all packages/core/utils/viewer.ts",
+    "deploy": "deno run --env-file --allow-all deployment/deploy.ts",
+    "serve": "deno run --allow-net --allow-read packages/server/serve.ts",
 
     // Database management tasks
-    "db:clear-topics": "deno run --allow-read --allow-write src/db/clear-topics.ts",
-    "db:migrate": "deno run --allow-read --allow-write src/db/migrate.ts",
+    "db:clear-topics": "deno run --allow-read --allow-write packages/db/clear-topics.ts",
+    "db:migrate": "deno run --allow-read --allow-write packages/db/migrate.ts",
 
     // Development and utility tasks
-    "check": "deno check src/**/*.ts",
-    "fmt": "deno fmt src/",
-    "lint": "deno lint src/",
+    "check": "deno check packages/**/*.ts",
+    "fmt": "deno fmt packages/",
+    "lint": "deno lint packages/",
     "test": "deno test --allow-all",
 
     // Combined workflows
@@ -31,11 +31,18 @@
     "sqlite": "https://deno.land/x/sqlite@v3.9.1/mod.ts",
     "std/dotenv": "https://deno.land/std@0.224.0/dotenv/mod.ts",
     "std/assert": "https://deno.land/std@0.224.0/assert/mod.ts",
-    "@google/generative-ai": "https://esm.sh/@google/generative-ai@0.21.0",
-    "zod": "npm:zod@4.2.1",
-    "openai": "npm:openai@^4.0.0",
+    "ai": "npm:ai@^4.0.0",
+    "@ai-sdk/google": "npm:@ai-sdk/google@^1.0.0",
+    "@ai-sdk/openai": "npm:@ai-sdk/openai@^1.0.0",
+    "zod": "npm:zod@^3.23.0",
     "api": "npm:api@^6.1.3"
   },
+  "workspace": [
+    "./packages/repository",
+    "./packages/core",
+    "./packages/server",
+    "./packages/db"
+  ],
   "fmt": {
     "useTabs": false,
     "lineWidth": 160,

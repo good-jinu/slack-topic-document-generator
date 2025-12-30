@@ -1,0 +1,22 @@
+{
+  "name": "@topicgen/core",
+  "version": "0.0.0",
+  "exports": {
+    "./config/index.ts": "./config/index.ts",
+    "./utils/logger.ts": "./utils/logger.ts",
+    "./utils/types.ts": "./utils/types.ts",
+    "./utils/validation.ts": "./utils/validation.ts",
+    "./utils/retry.ts": "./utils/retry.ts",
+    "./utils/filteredMessageViewer.ts": "./utils/filteredMessageViewer.ts",
+    "./utils/viewer.ts": "./utils/viewer.ts",
+    "./agent/index.ts": "./agent/index.ts",
+    "./agent/messageParser.ts": "./agent/messageParser.ts",
+    "./agent/messageRetriever.ts": "./agent/messageRetriever.ts",
+    "./agent/markdownFormatter.ts": "./agent/markdownFormatter.ts",
+    "./agent/schemas.ts": "./agent/schemas.ts",
+    "./agent/src/aiService.ts": "./agent/src/aiService.ts",
+    "./agent/src/documentService.ts": "./agent/src/documentService.ts",
+    "./agent/llm/index.ts": "./agent/llm/index.ts",
+    "./agent/prompts/index.ts": "./agent/prompts/index.ts"
+  }
+}

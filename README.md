@@ -191,6 +191,7 @@ deno task serve
 The server will start on `http://localhost:8000` by default and provides the following endpoints:
 
 **API Endpoints:**
+
 - `GET /api/documents` - List all documents
 - `GET /api/documents/:id` - Get specific document with full content
 - `GET /api/documents/:id/messages` - Get messages related to a document
@@ -198,6 +199,7 @@ The server will start on `http://localhost:8000` by default and provides the fol
 - `GET /health` - Health check endpoint
 
 **Examples:**
+
 ```bash
 # Get all documents
 curl http://localhost:8000/api/documents
@@ -213,6 +215,7 @@ curl http://localhost:8000/health
 ```
 
 **Test the API:**
+
 ```bash
 # Run unit tests for the server
 deno test src/server/
@@ -222,6 +225,7 @@ deno test
 ```
 
 **Environment Variables for Server:**
+
 - `PORT` - Server port (default: 8000)
 - `HOST` - Server hostname (default: localhost)
 

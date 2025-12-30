@@ -1,0 +1,11 @@
+{
+  "name": "@topicgen/db",
+  "version": "0.0.0",
+  "exports": {
+    "./index.ts": "./index.ts",
+    "./messageQueries.ts": "./messageQueries.ts",
+    "./migrate.ts": "./migrate.ts",
+    "./clear-topics.ts": "./clear-topics.ts",
+    "./src/databaseService.ts": "./src/databaseService.ts"
+  }
+}

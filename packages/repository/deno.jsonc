@@ -1,0 +1,11 @@
+{
+  "name": "@topicgen/repository",
+  "version": "0.0.0",
+  "exports": {
+    "./index.ts": "./index.ts",
+    "./utils.ts": "./utils.ts",
+    "./usersFetcher.ts": "./usersFetcher.ts",
+    "./userGroups.ts": "./userGroups.ts",
+    "./messagesFetcher.ts": "./messagesFetcher.ts"
+  }
+}
