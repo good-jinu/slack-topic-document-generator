@@ -196,13 +196,16 @@ export function getMessagesWithThreadsByIds(db: DB, messageIds: number[]): Slack
   }
 
   // First, get the initial messages
-  const placeholders = messageIds.map(() => '?').join(',');
-  const initialMessages = db.queryEntries<SlackMessage & { id: number }>(`
+  const placeholders = messageIds.map(() => "?").join(",");
+  const initialMessages = db.queryEntries<SlackMessage & { id: number }>(
+    `
     SELECT 
       id, channel_id, channel_name, user_id, user_name, text, ts, thread_id, permalink, created_at, mention_type 
     FROM messages 
     WHERE id IN (${placeholders})
-  `, messageIds);
+  `,
+    messageIds,
+  );
 
   // Collect all thread IDs from the initial messages
   const threadIds = new Set<string>();
@@ -219,25 +222,26 @@ export function getMessagesWithThreadsByIds(db: DB, messageIds: number[]): Slack
   }
 
   // Get all messages that belong to these threads
-  const threadPlaceholders = Array.from(threadIds).map(() => '?').join(',');
-  const threadMessages = db.queryEntries<SlackMessage & { id: number }>(`
+  const threadPlaceholders = Array.from(threadIds).map(() => "?").join(",");
+  const threadMessages = db.queryEntries<SlackMessage & { id: number }>(
+    `
     SELECT 
       id, channel_id, channel_name, user_id, user_name, text, ts, thread_id, permalink, created_at, mention_type 
     FROM messages 
     WHERE thread_id IN (${threadPlaceholders}) OR ts IN (${threadPlaceholders})
-  `, [...threadIds, ...threadIds]);
+  `,
+    [...threadIds, ...threadIds],
+  );
 
   // Combine and deduplicate messages
   const allMessages = new Map<number, SlackMessage & { id: number }>();
-  
+
   for (const msg of [...initialMessages, ...threadMessages]) {
     allMessages.set(msg.id, msg);
   }
 
   // Sort by created_at and return
-  return Array.from(allMessages.values()).sort((a, b) => 
-    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  );
+  return Array.from(allMessages.values()).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 }
 
 /**
@@ -249,13 +253,11 @@ export function calculateTopicDateRange(messages: SlackMessage[]): { startDate: 
   }
 
   // Sort messages by created_at to ensure proper ordering
-  const sortedMessages = [...messages].sort((a, b) => 
-    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  );
+  const sortedMessages = [...messages].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
   return {
     startDate: sortedMessages[0].created_at,
-    endDate: sortedMessages[sortedMessages.length - 1].created_at
+    endDate: sortedMessages[sortedMessages.length - 1].created_at,
   };
 }
 
@@ -356,11 +358,11 @@ export function saveTopic(
   isUpdate = false,
 ): number {
   const now = new Date().toISOString();
-  
+
   // Calculate start_date and end_date from message IDs if provided
   let startDate: string | null = null;
   let endDate: string | null = null;
-  
+
   if (messageIds && messageIds.length > 0) {
     const relatedMessages = getMessagesWithThreadsByIds(db, messageIds);
     const dateRange = calculateTopicDateRange(relatedMessages);
